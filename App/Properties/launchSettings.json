@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "LocalWinAI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "LocalWinAI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
