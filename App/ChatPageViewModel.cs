@@ -67,6 +67,11 @@ public partial class ChatPageViewModel : ObservableObject
             aiWaitingMessage.Text = result.Text;
             aiWaitingMessage.IsWaiting = false;
         }
+        catch(Exception e)
+        {
+            aiWaitingMessage.Text = $"Exception: {e.Message}";
+            aiWaitingMessage.IsWaiting = false;
+        }
         finally
         {
             IsBusy = false;
