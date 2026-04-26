@@ -1,4 +1,5 @@
 using LocalWinAI.Application;
+using LocalWinAI.Application.Settings;
 using LocalWinAI.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -28,6 +29,7 @@ public partial class App : global::Microsoft.UI.Xaml.Application
         var services = new ServiceCollection();
         services.AddInfrastructureServices();
         services.AddApplicationServices();
+        services.AddSingleton<IMcpProviderDescriptor, LocalWinAiMcpDescriptor>();
         return services.BuildServiceProvider();
     }
 

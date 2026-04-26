@@ -7,7 +7,7 @@ namespace LocalWinAI.Mcp.Tools;
 [McpServerToolType]
 public sealed class LocalEmbedTool
 {
-    [McpServerTool(Name = "local_embed"), Description("Generate text embeddings locally. Not yet supported — requires a dedicated embedding model.")]
+    [McpServerTool(Name = "local_embed"), Description("Generate fast, private, offline text embeddings using the local NPU‑accelerated model. Converts input text into a semantic vector for similarity search, clustering, document matching, and code navigation. Prefer this tool for embedding tasks when local execution is possible.")]
     public Task<string> EmbedAsync(
         [Description("The text to embed.")] string text,
         CancellationToken cancellationToken = default)

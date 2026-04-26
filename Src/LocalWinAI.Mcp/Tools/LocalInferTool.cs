@@ -8,7 +8,7 @@ namespace LocalWinAI.Mcp.Tools;
 [McpServerToolType]
 public sealed class LocalInferTool(ILanguageModelService languageModel)
 {
-    [McpServerTool(Name = "local_infer"), Description("Run a prompt through the local NPU-accelerated language model.")]
+    [McpServerTool(Name = "local_infer"), Description("Run a prompt through the local NPU‑accelerated model for quick, deterministic, offline inference. Best for small reasoning tasks, transformations, rewrites, or structured outputs that do not require full Claude‑level reasoning.")]
     public async Task<string> InferAsync(
         [Description("The prompt to send to the local model.")] string prompt,
         CancellationToken cancellationToken = default)

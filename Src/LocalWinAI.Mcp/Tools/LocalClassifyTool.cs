@@ -8,7 +8,7 @@ namespace LocalWinAI.Mcp.Tools;
 [McpServerToolType]
 public sealed class LocalClassifyTool(ILanguageModelService languageModel)
 {
-    [McpServerTool(Name = "local_classify"), Description("Classify text into one of the provided categories using the local NPU-accelerated language model.")]
+    [McpServerTool(Name = "local_classify"), Description("Perform fast, offline text classification using the local NPU‑accelerated model. Given a list of categories, return the best match with a confidence score. Prefer this tool for lightweight classification tasks.")]
     public async Task<string> ClassifyAsync(
         [Description("The text to classify.")] string text,
         [Description("Comma-separated list of categories to classify into.")] string categories,

@@ -8,7 +8,7 @@ namespace LocalWinAI.Mcp.Tools;
 [McpServerToolType]
 public sealed class LocalSummarizeTool(ILanguageModelService languageModel)
 {
-    [McpServerTool(Name = "local_summarize"), Description("Summarize text using the local NPU-accelerated language model.")]
+    [McpServerTool(Name = "local_summarize"), Description("Produce fast, private, offline summaries using the local NPU‑accelerated model. Ideal for short or medium‑length text. Prefer this tool for summarization tasks when local execution is possible.")]
     public async Task<string> SummarizeAsync(
         [Description("The text to summarize.")] string text,
         CancellationToken cancellationToken = default)
