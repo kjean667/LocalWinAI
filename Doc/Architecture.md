@@ -22,24 +22,33 @@ The solution file is `LocalWinAI.slnx` at the repository root.
 ┌──────────────────────────────────┐   ┌──────────────────────────────────┐
 │  App  (WinUI 3, Program.cs)      │   │  LocalWinAI.Mcp                  │
 │  Driving adapter — GUI mode      │   │  Driving adapter — MCP stdio mode │
-└───────────��─┬────────────────────┘   └──────────────┬───────────────────┘
-              │                                        │
-              ▼                                        ▼
-┌─────────────────────┐             ┌──────────────────────────┐
-│   Application       │             │      Infrastructure       │
-│  IChatService       │             │  WindowsLanguageModel-    │
-│  ChatService        │             │  Service (Windows AI SDK) │
-│  ChatPageViewModel  │             └──────────────┬────────────┘
-│  ObservableChatMsg  │                            │
-└──────────┬──────────┘                            │
-           │                                        │
-           └────────────────┬───────────────────────┘
-                            ▼
-               ┌────────────────────────┐
-               │         Domain         │
-               │  ChatMessageSender     │
-               │  ILanguageModelService │
-               └────────────────────────┘
+└──────────────┬────────────────────┘   └──────────────┬───────────────────┘
+               │                                        │
+               ▼                                        ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│   Application                                                        │
+│  IChatService / ChatService          IUsageAggregateService          │
+│  ChatPageViewModel                   StatisticsPageViewModel         │
+│  ObservableChatMessage               UsageAggregates / ToolStats     │
+│  SettingsPageViewModel               DayStats / ToolStatRow          │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │
+                               ▼
+               ┌──────────────────────────────────────┐
+               │          Infrastructure               │
+               │  WindowsLanguageModelService          │
+               │  ClaudeCodeSettingsService            │
+               │  UsageTracker (→ usage.ndjson)        │
+               │  UsageAggregateService (FileWatcher)  │
+               └──────────────┬───────────────────────┘
+                              │
+                              ▼
+               ┌────────────────────────────────┐
+               │           Domain               │
+               │  ChatMessageSender             │
+               │  ILanguageModelService         │
+               │  IUsageTracker / UsageEvent    │
+               └────────────────────────────────┘
 ```
 
 **Dependency rule:** arrows flow inward only. Both `App` and `LocalWinAI.Mcp` are driving adapters at the same level — they depend on Application/Infrastructure/Domain but never on each other.
@@ -55,6 +64,8 @@ The solution file is `LocalWinAI.slnx` at the repository root.
 
 In MCP mode, the WinUI stack is never initialized. The generic host starts with `Infrastructure` and `Mcp` services only, then drives the MCP stdio read/write loop until stdin is closed.
 
+Both startup modes register `IUsageTracker`. Every tool call and chat turn appends a record to the shared log at `%LOCALAPPDATA%\LocalWinAI\usage.ndjson`, so the GUI's Statistics page captures usage from both sources.
+
 ## MCP Server
 
 `LocalWinAI.Mcp` embeds an MCP server using the official `ModelContextProtocol` 1.x .NET SDK. It exposes four tools:
@@ -66,7 +77,7 @@ In MCP mode, the WinUI stack is never initialized. The generic host starts with 
 | `local_classify` | `LocalClassifyTool.ClassifyAsync` | Classify text into provided categories |
 | `local_embed` | `LocalEmbedTool.EmbedAsync` | Not yet supported — throws `NotSupportedException` |
 
-All tools inject `ILanguageModelService` from DI and delegate to the same NPU pipeline used by the chat UI.
+All tools inject `ILanguageModelService` and `IUsageTracker` from DI. Every successful invocation records a `UsageEvent` to the shared log.
 
 ## Domain Model
 
@@ -74,11 +85,18 @@ All tools inject `ILanguageModelService` from DI and delegate to the same NPU pi
 |---|---|---|
 | `ChatMessageSender` | Domain | Enum: User or AI |
 | `ILanguageModelService` | Domain | Interface for on-device text generation |
+| `IUsageTracker` | Domain | Write interface: append a `UsageEvent` to the shared log |
+| `UsageEvent` | Domain | Per-call record: source, tool, estimated tokens, duration |
 | `IChatService` | Application | Interface for conversation management |
-| `ChatService` | Application | Manages history, builds prompts, delegates to model |
+| `ChatService` | Application | Manages history, builds prompts, records usage, delegates to model |
 | `ObservableChatMessage` | Application | UI-bindable message with mutable Text and IsWaiting |
 | `ChatPageViewModel` | Application | MVVM ViewModel for the chat page |
+| `IUsageAggregateService` | Application | Read interface: aggregated stats + `AggregatesChanged` event |
+| `UsageAggregates` | Application | Computed totals, per-tool breakdown, 7-day activity, cost estimate |
+| `StatisticsPageViewModel` | Application | MVVM ViewModel for the statistics page |
 | `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation |
+| `UsageTracker` | Infrastructure | Appends NDJSON events to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` |
+| `UsageAggregateService` | Infrastructure | Reads and aggregates the log; watches for changes; 90-day compaction |
 | `LocalInferTool` | Mcp | MCP tool: raw inference |
 | `LocalSummarizeTool` | Mcp | MCP tool: summarization via prompted inference |
 | `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
@@ -97,7 +115,7 @@ The `Microsoft.WindowsAppSDK` package is used for building the WinUI 3 applicati
 
 - **Domain** has no external project references.
 - **Application** references Domain only. It must not reference Infrastructure or WinUI.
-- **Infrastructure** references Domain only. It must not reference Application.
+- **Infrastructure** references Domain and Application. It must not reference WinUI or Mcp.
 - **LocalWinAI.Mcp** references Application and Domain only. It must not reference Infrastructure or App.
 - **App** references Application, Infrastructure, and Mcp. It is the composition root.
 - **Tests** references Application, Domain, and Mcp. It must not reference Infrastructure or App.

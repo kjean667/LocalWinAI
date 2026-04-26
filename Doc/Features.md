@@ -2,6 +2,17 @@
 
 ## Finished features available right now
 
+### Usage Statistics
+- A dedicated **Statistics** page in the navigation shows how much work the local NPU has done.
+- Tracks every chat turn and every MCP tool call: token estimates, call counts, and duration.
+- Displays a **hero card** with cumulative token count and an estimated cost saving vs. cloud APIs (calculated at approximate reference rates — $3 / 1M input tokens, $15 / 1M output tokens).
+- Shows a **tool breakdown list** (Chat UI, Infer, Summarize, Classify) with all-time and today call counts.
+- Shows a **7-day activity bar chart**.
+- Shows a **streak badge** when the local model has been used on consecutive days.
+- Usage is persisted to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` — an append-only newline-delimited JSON log shared between the GUI process and any MCP server processes.
+- The statistics page **updates in near real-time** when external tools (e.g. Claude Code via MCP) use the local model: a `FileSystemWatcher` detects new data within ~200 ms, with a 5-second polling fallback. A **Refresh** button is also available.
+- The log is automatically compacted on startup — events older than 90 days are dropped.
+
 ### On-device Chat
 - Send text messages to the local Windows Runtime language model.
 - Conversation history is maintained across turns within a session (history is passed as a single joined prompt).

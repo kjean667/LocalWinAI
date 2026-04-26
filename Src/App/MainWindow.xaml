@@ -19,6 +19,11 @@
                     <FontIcon Glyph="&#xE8BD;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem x:Name="NavStatistics" Tag="Statistics" Content="Statistics">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE9D2;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
         <NavigationView.FooterMenuItems>
             <NavigationViewItem x:Name="NavSettings" Tag="Settings" Content="Settings">

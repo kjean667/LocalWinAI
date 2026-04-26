@@ -19,6 +19,7 @@ public sealed partial class MainWindow : Window
             var pageType = item.Tag switch
             {
                 "Settings" => typeof(SettingsPage),
+                "Statistics" => typeof(StatisticsPage),
                 _ => typeof(ChatPage)
             };
             MainFrame.Navigate(pageType);

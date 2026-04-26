@@ -10,7 +10,7 @@ public sealed class McpToolTests
     public async Task InferAsync_WhenModelReady_ReturnsGeneratedResponse()
     {
         var fake = new FakeLanguageModelService { ResponseText = "Hello from NPU" };
-        var tool = new LocalInferTool(fake);
+        var tool = new LocalInferTool(fake, new FakeUsageTracker());
 
         var result = await tool.InferAsync("say hello");
 
@@ -22,7 +22,7 @@ public sealed class McpToolTests
     public async Task InferAsync_WhenModelNotReady_ThrowsInvalidOperationException()
     {
         var fake = new FakeLanguageModelService { IsReady = false };
-        var tool = new LocalInferTool(fake);
+        var tool = new LocalInferTool(fake, new FakeUsageTracker());
 
         var act = async () => await tool.InferAsync("prompt");
 
@@ -33,7 +33,7 @@ public sealed class McpToolTests
     public async Task SummarizeAsync_WhenModelReady_ReturnsSummaryResponse()
     {
         var fake = new FakeLanguageModelService { ResponseText = "A short summary." };
-        var tool = new LocalSummarizeTool(fake);
+        var tool = new LocalSummarizeTool(fake, new FakeUsageTracker());
 
         var result = await tool.SummarizeAsync("A very long piece of text that needs summarizing.");
 
@@ -46,7 +46,7 @@ public sealed class McpToolTests
     public async Task SummarizeAsync_WhenModelNotReady_ThrowsInvalidOperationException()
     {
         var fake = new FakeLanguageModelService { IsReady = false };
-        var tool = new LocalSummarizeTool(fake);
+        var tool = new LocalSummarizeTool(fake, new FakeUsageTracker());
 
         var act = async () => await tool.SummarizeAsync("text");
 
@@ -57,7 +57,7 @@ public sealed class McpToolTests
     public async Task ClassifyAsync_WhenModelReady_IncludesTextAndCategoriesInPrompt()
     {
         var fake = new FakeLanguageModelService { ResponseText = "spam" };
-        var tool = new LocalClassifyTool(fake);
+        var tool = new LocalClassifyTool(fake, new FakeUsageTracker());
 
         var result = await tool.ClassifyAsync("Win a free prize!", "spam,not spam");
 
@@ -70,7 +70,7 @@ public sealed class McpToolTests
     public async Task ClassifyAsync_WhenModelNotReady_ThrowsInvalidOperationException()
     {
         var fake = new FakeLanguageModelService { IsReady = false };
-        var tool = new LocalClassifyTool(fake);
+        var tool = new LocalClassifyTool(fake, new FakeUsageTracker());
 
         var act = async () => await tool.ClassifyAsync("text", "a,b");
 
