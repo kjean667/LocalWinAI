@@ -1,0 +1,22 @@
+using System.ComponentModel;
+using LocalWinAI.Domain;
+using ModelContextProtocol.Server;
+
+namespace LocalWinAI.Mcp.Tools;
+
+/// <summary>MCP tool that summarizes text using the local NPU-accelerated language model.</summary>
+[McpServerToolType]
+public sealed class LocalSummarizeTool(ILanguageModelService languageModel)
+{
+    [McpServerTool(Name = "local_summarize"), Description("Summarize text using the local NPU-accelerated language model.")]
+    public async Task<string> SummarizeAsync(
+        [Description("The text to summarize.")] string text,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await languageModel.EnsureReadyAsync(cancellationToken))
+            throw new InvalidOperationException("Language model is not ready.");
+
+        var prompt = $"Summarize the following text concisely:\n\n{text}";
+        return await languageModel.GenerateResponseAsync(prompt, cancellationToken);
+    }
+}

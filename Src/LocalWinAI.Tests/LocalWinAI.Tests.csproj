@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LocalWinAI.Application\LocalWinAI.Application.csproj" />
     <ProjectReference Include="..\LocalWinAI.Domain\LocalWinAI.Domain.csproj" />
+    <ProjectReference Include="..\LocalWinAI.Mcp\LocalWinAI.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
