@@ -1,0 +1,39 @@
+# LocalWinAI
+
+LocalWinAI is a WinUI 3 desktop application that provides an on-device AI chat experience powered by the Windows Copilot Runtime (Intel NPU). No cloud connectivity is required; all inference runs locally.
+
+## Goals
+
+- Fast, private, on-device AI chat using the Windows Copilot Runtime language model.
+- A clean, layered codebase that is easy to extend as the local AI ecosystem matures.
+- Future MCP integration so that tools like Claude Code can delegate lightweight tasks (summarization, embeddings, heuristics) to the local model.
+
+## Repository Layout
+
+```
+Doc/          — Living documentation (Architecture, Features, Project)
+Src/          — All source code and the solution file
+  App/                        WinUI 3 views and composition root
+  LocalWinAI.Application/     Business logic and ViewModels
+  LocalWinAI.Domain/          Core interfaces and domain types
+  LocalWinAI.Infrastructure/  Windows AI SDK integration
+  LocalWinAI.Tests/           xUnit unit tests
+```
+
+## Technology Stack
+
+| Concern | Choice |
+|---|---|
+| Language | C# (.NET 10) |
+| UI framework | WinUI 3 (Windows App SDK 2.0-experimental) |
+| MVVM toolkit | CommunityToolkit.Mvvm 8.4 |
+| Local AI runtime | Windows Copilot Runtime (`Microsoft.Windows.AI.Text.LanguageModel`) |
+| DI container | Microsoft.Extensions.DependencyInjection |
+| Test framework | xUnit + FluentAssertions |
+| Build tooling | Visual Studio 2026 / dotnet CLI |
+
+## Requirements
+
+- Windows 11 25H2 or later
+- Copilot+ PC with NPU (or compatible hardware for local model inference)
+- `systemAIModels` capability declared in the app manifest
