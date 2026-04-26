@@ -11,9 +11,11 @@ public enum ChatMessageSender
 public partial class ChatMessage : ObservableObject
 {
     [ObservableProperty]
-    private string _text = string.Empty;
+    public partial string Text { get; set; } = string.Empty;
+
     [ObservableProperty]
-    private ChatMessageSender _sender = ChatMessageSender.User;
+    public partial ChatMessageSender Sender { get; set; } = ChatMessageSender.User;
+
     [ObservableProperty]
-    private bool _isWaiting = false;
+    public partial bool IsWaiting { get; set; } = false;
 }

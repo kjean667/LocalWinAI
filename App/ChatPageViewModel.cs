@@ -15,15 +15,15 @@ public partial class ChatPageViewModel : ObservableObject
     public RelayCommand ClearConversationCommand { get; }
 
     [ObservableProperty]
-    private string _inputText = string.Empty;
+    public partial string InputText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private bool _isBusy = false;
+    public partial bool IsBusy { get; set; } = false;
 
     private LanguageModel? _languageModel = null;
 
     [ObservableProperty]
-    private ObservableCollection<ChatMessage> _chatMessages = new();
+    public partial ObservableCollection<ChatMessage> ChatMessages { get; set; } = new();
 
     public ChatPageViewModel()
     {
