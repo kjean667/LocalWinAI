@@ -11,11 +11,24 @@ public sealed class WindowsLanguageModelService : ILanguageModelService, IDispos
 
     public async Task<bool> EnsureReadyAsync(CancellationToken cancellationToken = default)
     {
-        if (LanguageModel.GetReadyState() == AIFeatureReadyState.Ready)
-            return true;
+        try
+        {
+            var readyState = LanguageModel.GetReadyState();
+            if (readyState == AIFeatureReadyState.Ready)
+                return true;
 
-        var op = await LanguageModel.EnsureReadyAsync();
-        return op.Status == AIFeatureReadyResultState.Success;
+            var op = await LanguageModel.EnsureReadyAsync();
+            if (op.Status == AIFeatureReadyResultState.Success)
+                return true;
+
+            throw new InvalidOperationException(
+                $"Language model not ready. GetReadyState={readyState}, EnsureReadyAsync={op.Status}");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException(
+                $"Language model initialization failed: {ex.GetType().Name} 0x{ex.HResult:X8}: {ex.Message}", ex);
+        }
     }
 
     public async Task<string> GenerateResponseAsync(string prompt, CancellationToken cancellationToken = default)

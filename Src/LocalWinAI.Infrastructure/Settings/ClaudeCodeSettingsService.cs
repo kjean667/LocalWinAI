@@ -13,7 +13,7 @@ public class ClaudeCodeSettingsService : IClaudeCodeSettingsService
     };
 
     public string SettingsFilePath { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "settings.json");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json");
 
     public async Task<ClaudeCodeSettings> LoadAsync()
     {

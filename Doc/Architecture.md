@@ -102,6 +102,16 @@ All tools inject `ILanguageModelService` and `IUsageTracker` from DI. Every succ
 | `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
 | `LocalEmbedTool` | Mcp | MCP tool stub: embeddings (not yet supported) |
 
+## MCP Host Architecture Rationale
+
+The solution includes a separate `LocalWinAI.McpHost` project to handle MCP server functionality through inter-process communication with the main `LocalWinAI` application. This division is necessary due to platform constraints:
+
+- **MCP Host Limitations**: The MCP host executable (`LocalWinAI.McpHost.exe`) cannot directly access the local language model because it is not packaged as an AppX application and lacks access to the Limited Access Feature (LAF) required for Windows Copilot Runtime integration.
+
+- **Main App Limitations**: The main `LocalWinAI` application, being a WinUI 3 AppX package, cannot function as an MCP host because it lacks stdin access in packaged applications.
+
+To bridge this gap, `LocalWinAI.McpHost` communicates with the main `LocalWinAI` application through a named pipe. The MCP host sends language model commands via the pipe, and the main application executes them using its Windows Runtime access, then returns results back through the pipe. This architecture allows MCP clients to leverage local AI capabilities.
+
 ## Development Setup
 
 Requirements:

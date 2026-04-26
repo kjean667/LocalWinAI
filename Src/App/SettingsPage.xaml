@@ -17,10 +17,10 @@
 
             <!-- Claude Code MCP Integration section -->
             <StackPanel Spacing="12">
-                <TextBlock Text="Claude Code MCP Integration"
+                <TextBlock Text="MCP Integration for Developer Tools"
                            Style="{StaticResource SubtitleTextBlockStyle}" />
                 <TextBlock TextWrapping="Wrap" Opacity="0.7"
-                           Text="Register this app as an MCP server so Claude Code can delegate tasks to the local NPU instead of consuming cloud API tokens." />
+                           Text="Register this app as an MCP server for tools like Claude Code, VS Code, and Visual Studio so they can delegate tasks to the local NPU instead of consuming cloud API tokens." />
 
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Providers}">
                     <ItemsControl.ItemTemplate>

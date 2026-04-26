@@ -15,5 +15,9 @@
     <Platform Solution="Debug|x64" Project="x64" />
   </Project>
   <Project Path="Src/LocalWinAI.Mcp/LocalWinAI.Mcp.csproj" />
+
+  <Project Path="Src/LocalWinAI.McpHost/LocalWinAI.McpHost.csproj" Id="5d7add6a-af2e-4ec7-99d8-ea0d9c915401">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
   <Project Path="Src/LocalWinAI.Tests/LocalWinAI.Tests.csproj" />
 </Solution>

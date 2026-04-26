@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x64;ARM64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalWinAI.Infrastructure\LocalWinAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\LocalWinAI.Mcp\LocalWinAI.Mcp.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <Target Name="CopyMcpHost" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(TargetDir)LocalWinAI.McpHost.exe;$(TargetDir)LocalWinAI.McpHost.dll"
+      DestinationFolder="..\App\bin\$(Platform)\$(Configuration)\net10.0-windows10.0.19041.0\win-x64\AppX\" />
+  </Target>
+</Project>
