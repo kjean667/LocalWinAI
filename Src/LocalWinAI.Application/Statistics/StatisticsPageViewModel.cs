@@ -117,6 +117,7 @@ public partial class StatisticsPageViewModel : ObservableObject
         "local_infer" => "Infer",
         "local_summarize" => "Summarize",
         "local_classify" => "Classify",
+        "local_embed" => "Embed",
         _ => tool
     };
 
@@ -127,6 +128,7 @@ public partial class StatisticsPageViewModel : ObservableObject
         "local_infer" => ((char)0xE9F9).ToString(),    // Processing
         "local_summarize" => ((char)0xE8D2).ToString(), // ReadingList
         "local_classify" => ((char)0xE71C).ToString(),  // Filter
+        "local_embed" => ((char)0xE721).ToString(),    // Search
         _ => ((char)0xE8A1).ToString()
     };
 

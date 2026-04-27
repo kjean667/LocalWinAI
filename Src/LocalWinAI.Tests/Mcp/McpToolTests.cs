@@ -78,12 +78,26 @@ public sealed class McpToolTests
     }
 
     [Fact]
-    public async Task EmbedAsync_WhenCalled_ThrowsNotSupportedException()
+    public async Task EmbedAsync_WhenModelReady_ReturnsEmbeddingVector()
     {
-        var tool = new LocalEmbedTool();
+        var expected = new float[] { 0.1f, 0.2f, 0.3f };
+        var fake = new FakeLanguageModelService { EmbeddingVector = expected };
+        var tool = new LocalEmbedTool(fake, new FakeUsageTracker());
+
+        var result = await tool.EmbedAsync("some text");
+
+        result.Should().Equal(expected);
+        fake.LastEmbedText.Should().Be("some text");
+    }
+
+    [Fact]
+    public async Task EmbedAsync_WhenModelNotReady_ThrowsInvalidOperationException()
+    {
+        var fake = new FakeLanguageModelService { IsReady = false };
+        var tool = new LocalEmbedTool(fake, new FakeUsageTracker());
 
         var act = async () => await tool.EmbedAsync("some text");
 
-        await act.Should().ThrowAsync<NotSupportedException>();
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 }

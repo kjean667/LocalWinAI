@@ -96,6 +96,20 @@ public sealed class NamedPipeInferenceServer : IHostedService
                 {
                     response = new PipeResponse(request.Id, "pong");
                 }
+                else if (request.Method == "embed")
+                {
+                    try
+                    {
+                        var embedding = await _languageModel.GenerateEmbeddingAsync(
+                            request.Prompt ?? string.Empty, cancellationToken);
+                        response = new PipeResponse(request.Id, null, Embedding: embedding);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Embedding failed for request {Id}", request.Id);
+                        response = new PipeResponse(request.Id, null, ex.Message);
+                    }
+                }
                 else
                 {
                     try

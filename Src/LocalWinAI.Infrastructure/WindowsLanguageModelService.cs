@@ -38,5 +38,35 @@ public sealed class WindowsLanguageModelService : ILanguageModelService, IDispos
         return result.Text;
     }
 
+    public async Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            throw new ArgumentException("Text cannot be null or empty.", nameof(text));
+
+        _languageModel ??= await LanguageModel.CreateAsync();
+
+        var result = _languageModel.GenerateEmbeddingVectors(text);
+
+        if (result?.EmbeddingVectors is null || result.EmbeddingVectors.Count == 0)
+            throw new InvalidOperationException("Embedding model returned null or empty result.");
+
+        var dim = result.EmbeddingVectors[0].Size;
+        float[] pooled = new float[dim];
+
+        for (int i = 0; i < result.EmbeddingVectors.Count; i++)
+        {
+            float[] vec = new float[dim];
+            result.EmbeddingVectors[i].GetValues(vec);
+            for (int j = 0; j < dim; j++)
+                pooled[j] += vec[j];
+        }
+
+        int count = result.EmbeddingVectors.Count;
+        for (int j = 0; j < dim; j++)
+            pooled[j] /= count;
+
+        return pooled;
+    }
+
     public void Dispose() => _languageModel?.Dispose();
 }
