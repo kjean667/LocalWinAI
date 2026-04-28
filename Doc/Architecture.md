@@ -32,9 +32,10 @@ The solution file is `LocalWinAI.slnx` at the repository root.
 ┌──────────────────────────────────────────────────────────────────────┐
 │   Application                                                        │
 │  IChatService / ChatService          IUsageAggregateService          │
+│  IChatSessionManager / ChatSessionManager                            │
 │  ChatPageViewModel                   StatisticsPageViewModel         │
-│  ObservableChatMessage               UsageAggregates / ToolStats     │
-│  SettingsPageViewModel               DayStats / ToolStatRow          │
+│  ObservableChatMessage               ChatSessionSummaryViewModel     │
+│  UsageAggregates / ToolStats         DayStats / ToolStatRow          │
 └──────────────────────────────┬───────────────────────────────────────┘
                                │
                                ▼
@@ -43,6 +44,7 @@ The solution file is `LocalWinAI.slnx` at the repository root.
                │  WindowsLanguageModelService          │
                │  NamedPipeInferenceServer             │
                │  ClaudeCodeSettingsService            │
+               │  ChatSessionRepository (→ sessions/)  │
                │  UsageTracker (→ usage.ndjson)        │
                │  UsageAggregateService (FileWatcher)  │
                └──────────────┬───────────────────────┘
@@ -51,6 +53,8 @@ The solution file is `LocalWinAI.slnx` at the repository root.
                ┌────────────────────────────────┐
                │           Domain               │
                │  ChatMessageSender             │
+               │  ChatSession / ChatMessage     │
+               │  IChatSessionRepository        │
                │  ILanguageModelService         │
                │  IUsageTracker / UsageEvent    │
                └────────────────────────────────┘
@@ -101,18 +105,25 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | Type | Layer | Purpose |
 |---|---|---|
 | `ChatMessageSender` | Domain | Enum: User or AI |
+| `ChatMessage` | Domain | Immutable record of a single message: Sender, Text, Timestamp |
+| `ChatSession` | Domain | Aggregate root: Id, Title, CreatedAt, LastUsedAt, Messages |
+| `IChatSessionRepository` | Domain | Persistence contract for chat sessions |
 | `ILanguageModelService` | Domain | Interface for on-device text generation |
 | `IUsageTracker` | Domain | Write interface: append a `UsageEvent` to the shared log |
 | `UsageEvent` | Domain | Per-call record: source, tool, estimated tokens, duration |
 | `IChatService` | Application | Interface for conversation management |
-| `ChatService` | Application | Manages history, builds prompts, records usage, delegates to model |
+| `ChatService` | Application | Builds prompts from session history, delegates to model, persists after each exchange |
+| `IChatSessionManager` | Application | Orchestrates active session: create, switch, delete, persist, title generation |
+| `ChatSessionManager` | Application | Implements `IChatSessionManager`; fires background title generation after first exchange |
 | `ObservableChatMessage` | Application | UI-bindable message with mutable Text and IsWaiting |
-| `ChatPageViewModel` | Application | MVVM ViewModel for the chat page |
+| `ChatSessionSummaryViewModel` | Application | Observable sidebar item: Id, Title (observable), RelativeDateText |
+| `ChatPageViewModel` | Application | MVVM ViewModel for the chat page including session sidebar |
 | `IUsageAggregateService` | Application | Read interface: aggregated stats + `AggregatesChanged` event |
 | `UsageAggregates` | Application | Computed totals, per-tool breakdown, 7-day activity, cost estimate |
 | `StatisticsPageViewModel` | Application | MVVM ViewModel for the statistics page |
 | `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation of `ILanguageModelService` |
-| `NamedPipeInferenceServer` | Infrastructure | `IHostedService` that listens on the `LocalWinAI-Inference` named pipe and delegates to `ILanguageModelService` |
+| `NamedPipeInferenceServer` | Infrastructure | `IHostedService` that listens on the `LocalWinAI-Inference` named pipe |
+| `ChatSessionRepository` | Infrastructure | File-based `IChatSessionRepository`; stores sessions under `%LOCALAPPDATA%\LocalWinAI\sessions\` |
 | `PipeConstants` | Infrastructure | Shared pipe name and timeout constants |
 | `PipeRequest` / `PipeResponse` | Infrastructure | JSON record types for the pipe protocol |
 | `UsageTracker` | Infrastructure | Appends NDJSON events to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` |
@@ -122,6 +133,18 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
 | `LocalEmbedTool` | Mcp | MCP tool: generate a semantic embedding vector |
 | `PipeLanguageModelService` | McpHost | `ILanguageModelService` implementation that forwards requests over the named pipe |
+
+## Session Persistence Layout
+
+```
+%LocalAppData%\LocalWinAI\sessions\
+  index.json           ← [{Id, Title, LastUsedAt, CreatedAt}, ...]  (sidebar metadata)
+  {guid1}.json         ← Full ChatSession with all messages
+  {guid2}.json
+  ...
+```
+
+`GetAllAsync` reads only `index.json` (fast sidebar load). `GetAsync(id)` reads the full `{id}.json` file. `SaveAsync` updates both the session file and `index.json`.
 
 ## MCP Host Architecture Rationale
 

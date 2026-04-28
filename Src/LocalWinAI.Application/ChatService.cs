@@ -1,36 +1,43 @@
 using System.Diagnostics;
+using LocalWinAI.Application.Sessions;
 using LocalWinAI.Domain;
+using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Domain.Usage;
 
 namespace LocalWinAI.Application;
 
-/// <summary>Orchestrates chat sessions: builds prompts from history and delegates generation to the language model.</summary>
+/// <summary>Orchestrates chat turns: builds prompts from session history and delegates generation to the language model.</summary>
 public sealed class ChatService : IChatService
 {
     private readonly ILanguageModelService _languageModel;
     private readonly IUsageTracker _usageTracker;
-    private readonly List<string> _history = [];
+    private readonly IChatSessionManager _sessionManager;
 
-    public ChatService(ILanguageModelService languageModel, IUsageTracker usageTracker)
+    public ChatService(ILanguageModelService languageModel, IUsageTracker usageTracker, IChatSessionManager sessionManager)
     {
         _languageModel = languageModel;
         _usageTracker = usageTracker;
+        _sessionManager = sessionManager;
     }
 
     public async Task<string> SendMessageAsync(string userMessage, CancellationToken cancellationToken = default)
     {
-        _history.Add(userMessage);
+        var session = _sessionManager.ActiveSession;
+        session.Messages.Add(new ChatMessage(ChatMessageSender.User, userMessage, DateTimeOffset.UtcNow));
 
         var ready = await _languageModel.EnsureReadyAsync(cancellationToken);
         if (!ready)
+        {
+            session.Messages.RemoveAt(session.Messages.Count - 1);
             throw new InvalidOperationException("Language model is not ready.");
+        }
 
-        var prompt = string.Join("\n", _history);
+        var prompt = string.Join("\n", session.Messages.Select(m => m.Text));
         var sw = Stopwatch.StartNew();
         var response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
         sw.Stop();
 
-        _history.Add(response);
+        session.Messages.Add(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
 
         await _usageTracker.RecordAsync(new UsageEvent(
             DateTimeOffset.UtcNow,
@@ -40,8 +47,8 @@ public sealed class ChatService : IChatService
             UsageEvent.EstimateTokens(response),
             (int)sw.ElapsedMilliseconds));
 
+        await _sessionManager.PersistActiveSessionAsync();
+
         return response;
     }
-
-    public void ClearConversation() => _history.Clear();
 }

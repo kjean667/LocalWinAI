@@ -6,7 +6,6 @@ public sealed class FakeChatService : IChatService
 {
     public string Response { get; set; } = "Fake response";
     public bool ThrowOnSend { get; set; } = false;
-    public bool ConversationCleared { get; private set; }
     public int SendCallCount { get; private set; }
 
     public Task<string> SendMessageAsync(string userMessage, CancellationToken cancellationToken = default)
@@ -16,6 +15,4 @@ public sealed class FakeChatService : IChatService
             throw new InvalidOperationException("Language model is not ready.");
         return Task.FromResult(Response);
     }
-
-    public void ClearConversation() => ConversationCleared = true;
 }
