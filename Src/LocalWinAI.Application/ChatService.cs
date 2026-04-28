@@ -25,29 +25,38 @@ public sealed class ChatService : IChatService
         var session = _sessionManager.ActiveSession;
         session.Messages.Add(new ChatMessage(ChatMessageSender.User, userMessage, DateTimeOffset.UtcNow));
 
-        var ready = await _languageModel.EnsureReadyAsync(cancellationToken);
-        if (!ready)
+        string response;
+        try
+        {
+            var ready = await _languageModel.EnsureReadyAsync(cancellationToken);
+            if (!ready)
+            {
+                session.Messages.RemoveAt(session.Messages.Count - 1);
+                throw new InvalidOperationException("Language model is not ready.");
+            }
+
+            var prompt = string.Join("\n", session.Messages.Select(m => m.Text));
+            var sw = Stopwatch.StartNew();
+            response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
+            sw.Stop();
+
+            session.Messages.Add(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
+
+            await _usageTracker.RecordAsync(new UsageEvent(
+                DateTimeOffset.UtcNow,
+                "chat",
+                "chat",
+                UsageEvent.EstimateTokens(prompt),
+                UsageEvent.EstimateTokens(response),
+                (int)sw.ElapsedMilliseconds));
+
+            await _sessionManager.PersistActiveSessionAsync();
+        }
+        catch (OperationCanceledException)
         {
             session.Messages.RemoveAt(session.Messages.Count - 1);
-            throw new InvalidOperationException("Language model is not ready.");
+            throw;
         }
-
-        var prompt = string.Join("\n", session.Messages.Select(m => m.Text));
-        var sw = Stopwatch.StartNew();
-        var response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
-        sw.Stop();
-
-        session.Messages.Add(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
-
-        await _usageTracker.RecordAsync(new UsageEvent(
-            DateTimeOffset.UtcNow,
-            "chat",
-            "chat",
-            UsageEvent.EstimateTokens(prompt),
-            UsageEvent.EstimateTokens(response),
-            (int)sw.ElapsedMilliseconds));
-
-        await _sessionManager.PersistActiveSessionAsync();
 
         return response;
     }

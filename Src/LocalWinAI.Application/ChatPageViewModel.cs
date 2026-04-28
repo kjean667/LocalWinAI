@@ -12,6 +12,9 @@ public partial class ChatPageViewModel : ObservableObject
     private readonly IChatService _chatService;
     private readonly IChatSessionManager _sessionManager;
     private readonly SynchronizationContext? _syncContext;
+    private CancellationTokenSource? _inFlightCts;
+    private Guid? _inFlightSessionId;
+    private readonly Dictionary<Guid, string> _sessionDrafts = [];
 
     [ObservableProperty]
     public partial string InputText { get; set; } = string.Empty;
@@ -57,35 +60,50 @@ public partial class ChatPageViewModel : ObservableObject
         if (string.IsNullOrEmpty(userMessage))
             return;
 
+        var sessionId = _sessionManager.ActiveSession.Id;
+        _sessionDrafts[sessionId] = userMessage;
+        _inFlightSessionId = sessionId;
+
         IsBusy = true;
         InputText = string.Empty;
-        ChatMessages.Add(new ObservableChatMessage { Text = userMessage, Sender = ChatMessageSender.User });
 
+        _inFlightCts?.Cancel();
+        _inFlightCts?.Dispose();
+        _inFlightCts = new CancellationTokenSource();
+
+        ChatMessages.Add(new ObservableChatMessage { Text = userMessage, Sender = ChatMessageSender.User });
         var aiMessage = new ObservableChatMessage { Text = "...", Sender = ChatMessageSender.AI, IsWaiting = true };
         ChatMessages.Add(aiMessage);
 
         try
         {
-            var response = await _chatService.SendMessageAsync(userMessage);
+            var response = await _chatService.SendMessageAsync(userMessage, _inFlightCts.Token);
             aiMessage.Text = response;
             aiMessage.IsWaiting = false;
+            _sessionDrafts.Remove(sessionId);
         }
+        catch (OperationCanceledException) { }
         catch (Exception e)
         {
             aiMessage.Text = $"Error: {e.Message}";
             aiMessage.IsWaiting = false;
+            _sessionDrafts.Remove(sessionId);
         }
         finally
         {
+            _inFlightSessionId = null;
             IsBusy = false;
         }
     }
 
     private async Task NewSessionAsync()
     {
+        _inFlightCts?.Cancel();
+        IsBusy = false;
         await _sessionManager.CreateSessionAsync();
         await RefreshSessionsAsync();
         LoadActiveSessionMessages();
+        InputText = string.Empty;
     }
 
     private async Task SwitchSessionAsync(Guid id)
@@ -93,16 +111,46 @@ public partial class ChatPageViewModel : ObservableObject
         if (id == _sessionManager.ActiveSession.Id)
             return;
 
+        _inFlightCts?.Cancel();
+
         await _sessionManager.SwitchToSessionAsync(id);
         LoadActiveSessionMessages();
         ActiveSessionId = _sessionManager.ActiveSession.Id;
+
+        IsBusy = _inFlightSessionId == id;
+
+        if (_sessionDrafts.TryGetValue(id, out var draft))
+        {
+            InputText = draft;
+            _sessionDrafts.Remove(id);
+        }
+        else
+        {
+            InputText = string.Empty;
+        }
     }
 
     private async Task DeleteSessionAsync(Guid id)
     {
+        if (id == _sessionManager.ActiveSession.Id)
+            _inFlightCts?.Cancel();
+
         await _sessionManager.DeleteSessionAsync(id);
         await RefreshSessionsAsync();
         LoadActiveSessionMessages();
+
+        var newId = _sessionManager.ActiveSession.Id;
+        IsBusy = _inFlightSessionId == newId;
+
+        if (_sessionDrafts.TryGetValue(newId, out var draft))
+        {
+            InputText = draft;
+            _sessionDrafts.Remove(newId);
+        }
+        else
+        {
+            InputText = string.Empty;
+        }
     }
 
     private async Task RefreshSessionsAsync()
