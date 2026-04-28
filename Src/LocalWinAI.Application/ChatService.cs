@@ -23,7 +23,7 @@ public sealed class ChatService : IChatService
     public async Task<string> SendMessageAsync(string userMessage, CancellationToken cancellationToken = default)
     {
         var session = _sessionManager.ActiveSession;
-        session.Messages.Add(new ChatMessage(ChatMessageSender.User, userMessage, DateTimeOffset.UtcNow));
+        session.AddMessage(new ChatMessage(ChatMessageSender.User, userMessage, DateTimeOffset.UtcNow));
 
         string response;
         try
@@ -31,7 +31,7 @@ public sealed class ChatService : IChatService
             var ready = await _languageModel.EnsureReadyAsync(cancellationToken);
             if (!ready)
             {
-                session.Messages.RemoveAt(session.Messages.Count - 1);
+                session.RemoveLastMessage();
                 throw new InvalidOperationException("Language model is not ready.");
             }
 
@@ -40,7 +40,7 @@ public sealed class ChatService : IChatService
             response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
             sw.Stop();
 
-            session.Messages.Add(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
+            session.AddMessage(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
 
             await _usageTracker.RecordAsync(new UsageEvent(
                 DateTimeOffset.UtcNow,
@@ -54,7 +54,7 @@ public sealed class ChatService : IChatService
         }
         catch (OperationCanceledException)
         {
-            session.Messages.RemoveAt(session.Messages.Count - 1);
+            session.RemoveLastMessage();
             throw;
         }
 

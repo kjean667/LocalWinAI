@@ -8,6 +8,7 @@ public sealed class ChatSessionManager : IChatSessionManager
 {
     private readonly IChatSessionRepository _repository;
     private readonly ILanguageModelService _languageModel;
+    // Assigned in InitializeAsync before any caller can reach ActiveSession.
     private ChatSession _activeSession = null!;
 
     public ChatSession ActiveSession => _activeSession;
@@ -103,7 +104,7 @@ public sealed class ChatSessionManager : IChatSessionManager
 
             session.Title = title;
         }
-        catch
+        catch (Exception)
         {
             session.Title = TruncateTitle(firstUserMessage);
         }

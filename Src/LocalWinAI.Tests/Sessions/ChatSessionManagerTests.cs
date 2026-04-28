@@ -31,8 +31,8 @@ public class ChatSessionManagerTests
         var (manager, repo, _) = Create();
         var old = new ChatSession { LastUsedAt = DateTimeOffset.UtcNow.AddDays(-1) };
         var recent = new ChatSession { LastUsedAt = DateTimeOffset.UtcNow };
-        old.Messages.Add(new ChatMessage(Domain.ChatMessageSender.User, "old", DateTimeOffset.UtcNow));
-        recent.Messages.Add(new ChatMessage(Domain.ChatMessageSender.User, "recent", DateTimeOffset.UtcNow));
+        old.AddMessage(new ChatMessage(Domain.ChatMessageSender.User, "old", DateTimeOffset.UtcNow));
+        recent.AddMessage(new ChatMessage(Domain.ChatMessageSender.User, "recent", DateTimeOffset.UtcNow));
         await repo.SaveAsync(old);
         await repo.SaveAsync(recent);
 
@@ -63,7 +63,7 @@ public class ChatSessionManagerTests
         var firstId = manager.ActiveSession.Id;
 
         var second = new ChatSession();
-        second.Messages.Add(new ChatMessage(Domain.ChatMessageSender.User, "hello", DateTimeOffset.UtcNow));
+        second.AddMessage(new ChatMessage(Domain.ChatMessageSender.User, "hello", DateTimeOffset.UtcNow));
         await repo.SaveAsync(second);
 
         await manager.SwitchToSessionAsync(second.Id);

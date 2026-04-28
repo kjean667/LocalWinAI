@@ -94,7 +94,7 @@ public class ChatPageViewModelTests
     public async Task InitializeAsync_LoadsSessionsAndMessages()
     {
         var (vm, _, sessionManager) = CreateVm();
-        sessionManager.ActiveSession.Messages.Add(
+        sessionManager.ActiveSession.AddMessage(
             new LocalWinAI.Domain.Sessions.ChatMessage(ChatMessageSender.User, "Hi", DateTimeOffset.UtcNow));
 
         await vm.InitializeAsync();
@@ -125,7 +125,7 @@ public class ChatPageViewModelTests
 
         // Add a second session directly so active session stays as session 1.
         var other = new LocalWinAI.Domain.Sessions.ChatSession();
-        other.Messages.Add(new LocalWinAI.Domain.Sessions.ChatMessage(ChatMessageSender.User, "Other session", DateTimeOffset.UtcNow));
+        other.AddMessage(new LocalWinAI.Domain.Sessions.ChatMessage(ChatMessageSender.User, "Other session", DateTimeOffset.UtcNow));
         sessionManager.AllSessions.Add(other);
 
         await vm.SwitchSessionCommand.ExecuteAsync(other.Id);

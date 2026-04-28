@@ -52,14 +52,29 @@ public sealed class ChatSessionRepository : IChatSessionRepository
             return null;
 
         var json = await File.ReadAllTextAsync(path);
-        return JsonSerializer.Deserialize<ChatSession>(json, JsonOptions);
+        var doc = JsonSerializer.Deserialize<ChatSessionDocument>(json, JsonOptions);
+        if (doc is null)
+            return null;
+
+        var session = new ChatSession { Id = doc.Id, Title = doc.Title, CreatedAt = doc.CreatedAt, LastUsedAt = doc.LastUsedAt };
+        foreach (var m in doc.Messages)
+            session.AddMessage(m);
+        return session;
     }
 
     public async Task SaveAsync(ChatSession session)
     {
         Directory.CreateDirectory(StorageRoot);
 
-        var sessionJson = JsonSerializer.Serialize(session, JsonOptions);
+        var doc = new ChatSessionDocument
+        {
+            Id = session.Id,
+            Title = session.Title,
+            CreatedAt = session.CreatedAt,
+            LastUsedAt = session.LastUsedAt,
+            Messages = session.Messages.ToList()
+        };
+        var sessionJson = JsonSerializer.Serialize(doc, JsonOptions);
         await WriteWithRetryAsync(SessionPath(session.Id), sessionJson);
         await UpdateIndexAsync(session);
     }
@@ -118,7 +133,6 @@ public sealed class ChatSessionRepository : IChatSessionRepository
             {
                 await Task.Delay(50);
             }
-            catch (IOException) { }
         }
     }
 
@@ -126,4 +140,13 @@ public sealed class ChatSessionRepository : IChatSessionRepository
     private static string IndexPath() => Path.Combine(StorageRoot, "index.json");
 
     private sealed record SessionIndexEntry(Guid Id, string Title, DateTimeOffset CreatedAt, DateTimeOffset LastUsedAt);
+
+    private sealed class ChatSessionDocument
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset LastUsedAt { get; set; }
+        public List<ChatMessage> Messages { get; set; } = [];
+    }
 }
