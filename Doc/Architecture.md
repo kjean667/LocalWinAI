@@ -6,58 +6,95 @@ This document describes the current implemented architecture in `Src/`.
 
 ```
 Src/
-  LocalWinAI.sln
   LocalWinAI.Domain/          — Core abstractions and domain types (net10.0-windows10.0.19041.0)
   LocalWinAI.Application/     — Business logic, ViewModels, DI registration (net10.0-windows10.0.19041.0)
-  LocalWinAI.Infrastructure/  — Windows AI integration (net10.0-windows10.0.19041.0)
+  LocalWinAI.Infrastructure/  — Windows AI integration and named pipe server (net10.0-windows10.0.19041.0)
+  LocalWinAI.Mcp/             — MCP tool implementations (net10.0-windows10.0.19041.0)
+  LocalWinAI.McpHost/         — MCP stdio host executable; bridges AI agents to the pipe server (net10.0)
   App/                        — WinUI 3 views and composition root (net10.0-windows10.0.19041.0)
   LocalWinAI.Tests/           — xUnit unit tests (net10.0-windows10.0.19041.0)
 ```
 
+The solution file is `LocalWinAI.slnx` at the repository root.
+
 ## Layered Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  App  (WinUI 3 Views, App.xaml.cs composition root) │
-└────────────┬──────────────────────────┬─────────────┘
-             │                          │
-             ▼                          ▼
-┌────────────────────┐    ┌──────────────────────────┐
-│   Application      │    │      Infrastructure       │
-│  IChatService      │    │  WindowsLanguageModel-    │
-│  ChatService       │    │  Service (Windows AI SDK) │
-│  ChatPageViewModel │    └──────────────┬────────────┘
-│  ObservableChat-   │                   │
-│  Message           │                   │
-└────────────┬───────┘                   │
-             │                           │
-             └──────────┬────────────────┘
-                        ▼
-             ┌─────────────────────┐
-             │       Domain        │
-             │  ChatMessageSender  │
-             │  ILanguageModel-    │
-             │  Service            │
-             └─────────────────────┘
+┌──────────────────────────────────┐   ┌──────────────────────────────────┐
+│  App  (WinUI 3)                  │   │  LocalWinAI.McpHost              │
+│  GUI + named pipe server         │   │  MCP stdio host                  │
+│                                  │   │  PipeLanguageModelService        │
+└──────────────┬────────────────────┘   └──────────────┬───────────────────┘
+               │       named pipe IPC                   │
+               │◄───────────────────────────────────────┘
+               │                                        │
+               ▼                              ▼ (hosts LocalWinAI.Mcp tools)
+┌──────────────────────────────────────────────────────────────────────┐
+│   Application                                                        │
+│  IChatService / ChatService          IUsageAggregateService          │
+│  ChatPageViewModel                   StatisticsPageViewModel         │
+│  ObservableChatMessage               UsageAggregates / ToolStats     │
+│  SettingsPageViewModel               DayStats / ToolStatRow          │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │
+                               ▼
+               ┌──────────────────────────────────────┐
+               │          Infrastructure               │
+               │  WindowsLanguageModelService          │
+               │  NamedPipeInferenceServer             │
+               │  ClaudeCodeSettingsService            │
+               │  UsageTracker (→ usage.ndjson)        │
+               │  UsageAggregateService (FileWatcher)  │
+               └──────────────┬───────────────────────┘
+                              │
+                              ▼
+               ┌────────────────────────────────┐
+               │           Domain               │
+               │  ChatMessageSender             │
+               │  ILanguageModelService         │
+               │  IUsageTracker / UsageEvent    │
+               └────────────────────────────────┘
 ```
 
-**Dependency rule:** arrows flow inward only. App and Infrastructure both depend on Application and Domain. Application depends on Domain. Domain has no project dependencies.
+**Dependency rule:** arrows flow inward only. `App` and `LocalWinAI.McpHost` are driving adapters at the same level — they depend on Application/Infrastructure/Domain but never on each other. `LocalWinAI.Mcp` contains the MCP tool implementations and is loaded by `McpHost`.
 
-## Current Implemented Behavior
+## Startup Modes
 
-### Chat Flow
+There are two executables:
 
-1. User types a message and clicks **Ask** (or presses Enter).
-2. `ChatPageViewModel.GenerateResponseAsync` adds a user message bubble and a waiting AI bubble to the observable collection.
-3. `ChatService.SendMessageAsync` appends the user message to internal conversation history, calls `ILanguageModelService.EnsureReadyAsync`, then calls `GenerateResponseAsync` with the full history joined as a prompt.
-4. `WindowsLanguageModelService` delegates to the Windows Copilot Runtime (`Microsoft.Windows.AI.Text.LanguageModel`), which runs inference on the on-device NPU.
-5. The AI response is stored in conversation history and returned to the ViewModel, which updates the AI bubble text.
+| Executable | Mode |
+|---|---|
+| `LocalWinAI.exe` | WinUI 3 GUI — launches the chat window and starts the named pipe inference server |
+| `LocalWinAI.McpHost.exe --mcp` | MCP host — stdio transport, no UI; forwards inference requests to LocalWinAI.exe via named pipe |
 
-### Conversation Management
+`LocalWinAI.exe` always starts in GUI mode. On startup it initializes `NamedPipeInferenceServer` as a background service on the named pipe `LocalWinAI-Inference`. This pipe server must be reachable for any MCP tool call to succeed — the app must be running.
 
-- `ChatService` maintains the conversation history as an ordered list of prompt lines.
-- `ChatPageViewModel` maintains an `ObservableCollection<ObservableChatMessage>` for UI data binding.
-- Clearing the conversation resets both the ViewModel collection and the `ChatService` history.
+`LocalWinAI.McpHost.exe` is a separate, non-packaged executable. It registers `PipeLanguageModelService` as `ILanguageModelService`, which sends each inference or embedding request to the running `LocalWinAI.exe` over the named pipe and returns the result. Both executables register `IUsageTracker`. Every tool call and chat turn appends a record to the shared log at `%LOCALAPPDATA%\LocalWinAI\usage.ndjson`, so the GUI's Statistics page captures usage from both sources.
+
+## MCP Server
+
+`LocalWinAI.Mcp` contains MCP tool implementations using the official `ModelContextProtocol` 1.x .NET SDK. These tools are hosted by `LocalWinAI.McpHost.exe`, which acts as the stdio MCP server process for MCP clients such as Claude Code.
+
+| Tool | Method | Description |
+|---|---|---|
+| `local_infer` | `LocalInferTool.InferAsync` | Run a prompt through the local model |
+| `local_summarize` | `LocalSummarizeTool.SummarizeAsync` | Summarize text |
+| `local_classify` | `LocalClassifyTool.ClassifyAsync` | Classify text into provided categories |
+| `local_embed` | `LocalEmbedTool.EmbedAsync` | Generate a semantic embedding vector |
+
+All tools inject `ILanguageModelService` and `IUsageTracker` from DI. In `McpHost`, `ILanguageModelService` is satisfied by `PipeLanguageModelService`, which forwards calls over the named pipe to the running `LocalWinAI.exe`. Every successful invocation records a `UsageEvent` to the shared log.
+
+### Named Pipe Protocol
+
+`PipeLanguageModelService` opens a new `NamedPipeClientStream` connection per request to the pipe `LocalWinAI-Inference`. Messages are newline-delimited JSON using camelCase property names.
+
+| `PipeRequest.Method` | Payload | Response |
+|---|---|---|
+| `ping` | — | `PipeResponse.Result = "pong"` |
+| `infer` | `Prompt` | `PipeResponse.Result` = generated text |
+| `embed` | `Prompt` | `PipeResponse.Embedding` = `float[]` vector |
+
+Timeouts: connect = 5 s, inference/embed = 120 s.
 
 ## Domain Model
 
@@ -65,11 +102,36 @@ Src/
 |---|---|---|
 | `ChatMessageSender` | Domain | Enum: User or AI |
 | `ILanguageModelService` | Domain | Interface for on-device text generation |
+| `IUsageTracker` | Domain | Write interface: append a `UsageEvent` to the shared log |
+| `UsageEvent` | Domain | Per-call record: source, tool, estimated tokens, duration |
 | `IChatService` | Application | Interface for conversation management |
-| `ChatService` | Application | Manages history, builds prompts, delegates to model |
+| `ChatService` | Application | Manages history, builds prompts, records usage, delegates to model |
 | `ObservableChatMessage` | Application | UI-bindable message with mutable Text and IsWaiting |
 | `ChatPageViewModel` | Application | MVVM ViewModel for the chat page |
-| `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation |
+| `IUsageAggregateService` | Application | Read interface: aggregated stats + `AggregatesChanged` event |
+| `UsageAggregates` | Application | Computed totals, per-tool breakdown, 7-day activity, cost estimate |
+| `StatisticsPageViewModel` | Application | MVVM ViewModel for the statistics page |
+| `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation of `ILanguageModelService` |
+| `NamedPipeInferenceServer` | Infrastructure | `IHostedService` that listens on the `LocalWinAI-Inference` named pipe and delegates to `ILanguageModelService` |
+| `PipeConstants` | Infrastructure | Shared pipe name and timeout constants |
+| `PipeRequest` / `PipeResponse` | Infrastructure | JSON record types for the pipe protocol |
+| `UsageTracker` | Infrastructure | Appends NDJSON events to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` |
+| `UsageAggregateService` | Infrastructure | Reads and aggregates the log; watches for changes; 90-day compaction |
+| `LocalInferTool` | Mcp | MCP tool: raw inference |
+| `LocalSummarizeTool` | Mcp | MCP tool: summarization via prompted inference |
+| `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
+| `LocalEmbedTool` | Mcp | MCP tool: generate a semantic embedding vector |
+| `PipeLanguageModelService` | McpHost | `ILanguageModelService` implementation that forwards requests over the named pipe |
+
+## MCP Host Architecture Rationale
+
+Two platform constraints force the two-process design:
+
+- **McpHost cannot access the local model**: `LocalWinAI.McpHost.exe` is a plain .NET console app, not an AppX package. Windows Copilot Runtime (`ILanguageModel`) requires the Limited Access Feature (LAF), which is only granted to packaged AppX applications. The McpHost therefore cannot call the model directly.
+
+- **The main app cannot act as an MCP host**: `LocalWinAI.exe` is a WinUI 3 AppX package. Packaged apps do not have access to `stdin`, so the stdio transport required by the MCP protocol is unavailable.
+
+The named pipe bridges the gap: `LocalWinAI.exe` runs a `NamedPipeInferenceServer` in the background at all times. `LocalWinAI.McpHost.exe` connects to the pipe per request, sends a JSON command (`infer` or `embed`), and returns the result to the MCP client via stdio.
 
 ## Development Setup
 
@@ -84,9 +146,11 @@ The `Microsoft.WindowsAppSDK` package is used for building the WinUI 3 applicati
 
 - **Domain** has no external project references.
 - **Application** references Domain only. It must not reference Infrastructure or WinUI.
-- **Infrastructure** references Domain only. It must not reference Application.
-- **App** references Application and Infrastructure. It is the composition root.
-- **Tests** references Application and Domain only. It must not reference Infrastructure or App.
+- **Infrastructure** references Domain and Application. It must not reference WinUI, Mcp, or McpHost.
+- **LocalWinAI.Mcp** references Application and Domain only. It must not reference Infrastructure or App.
+- **LocalWinAI.McpHost** references Infrastructure, Mcp, Application, and Domain. It is the composition root for the MCP process.
+- **App** references Application, Infrastructure, and Mcp. It is the composition root for the GUI process.
+- **Tests** references Application, Domain, and Mcp. It must not reference Infrastructure or App.
 
 ## Build and Test
 

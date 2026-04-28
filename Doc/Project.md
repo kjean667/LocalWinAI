@@ -6,17 +6,20 @@ LocalWinAI is a WinUI 3 desktop application that provides an on-device AI chat e
 
 - Fast, private, on-device AI chat using the Windows Copilot Runtime language model.
 - A clean, layered codebase that is easy to extend as the local AI ecosystem matures.
-- Future MCP integration so that tools like Claude Code can delegate lightweight tasks (summarization, embeddings, heuristics) to the local model.
+- MCP integration so that tools like Claude Code can delegate lightweight tasks (summarization, classification, inference) to the local NPU instead of consuming cloud API tokens.
+- Usage statistics that surface how many tokens have been processed locally and estimate the cloud cost saved, updated in near real-time across both the GUI and MCP processes.
 
 ## Repository Layout
 
 ```
 Doc/          — Living documentation (Architecture, Features, Project)
 Src/          — All source code and the solution file
-  App/                        WinUI 3 views and composition root
+  App/                        WinUI 3 views and composition root; runs the named pipe inference server
   LocalWinAI.Application/     Business logic and ViewModels
   LocalWinAI.Domain/          Core interfaces and domain types
-  LocalWinAI.Infrastructure/  Windows AI SDK integration
+  LocalWinAI.Infrastructure/  Windows AI SDK integration and named pipe server
+  LocalWinAI.Mcp/             MCP tool implementations
+  LocalWinAI.McpHost/         MCP stdio host executable; bridges MCP clients to the named pipe
   LocalWinAI.Tests/           xUnit unit tests
 ```
 

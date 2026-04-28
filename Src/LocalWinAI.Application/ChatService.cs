@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using LocalWinAI.Domain;
+using LocalWinAI.Domain.Usage;
 
 namespace LocalWinAI.Application;
 
@@ -6,11 +8,13 @@ namespace LocalWinAI.Application;
 public sealed class ChatService : IChatService
 {
     private readonly ILanguageModelService _languageModel;
+    private readonly IUsageTracker _usageTracker;
     private readonly List<string> _history = [];
 
-    public ChatService(ILanguageModelService languageModel)
+    public ChatService(ILanguageModelService languageModel, IUsageTracker usageTracker)
     {
         _languageModel = languageModel;
+        _usageTracker = usageTracker;
     }
 
     public async Task<string> SendMessageAsync(string userMessage, CancellationToken cancellationToken = default)
@@ -22,9 +26,20 @@ public sealed class ChatService : IChatService
             throw new InvalidOperationException("Language model is not ready.");
 
         var prompt = string.Join("\n", _history);
+        var sw = Stopwatch.StartNew();
         var response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
+        sw.Stop();
 
         _history.Add(response);
+
+        await _usageTracker.RecordAsync(new UsageEvent(
+            DateTimeOffset.UtcNow,
+            "chat",
+            "chat",
+            UsageEvent.EstimateTokens(prompt),
+            UsageEvent.EstimateTokens(response),
+            (int)sw.ElapsedMilliseconds));
+
         return response;
     }
 

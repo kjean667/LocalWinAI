@@ -6,11 +6,14 @@ namespace LocalWinAI.Tests;
 
 public class ChatServiceTests
 {
+    private static ChatService CreateService(FakeLanguageModelService fake)
+        => new(fake, new FakeUsageTracker());
+
     [Fact]
     public async Task SendMessageAsync_WhenModelReady_ReturnsGeneratedResponse()
     {
         var fake = new FakeLanguageModelService { ResponseText = "Hello there!" };
-        var service = new ChatService(fake);
+        var service = CreateService(fake);
 
         var response = await service.SendMessageAsync("Hi");
 
@@ -21,7 +24,7 @@ public class ChatServiceTests
     public async Task SendMessageAsync_WhenModelNotReady_ThrowsInvalidOperationException()
     {
         var fake = new FakeLanguageModelService { IsReady = false };
-        var service = new ChatService(fake);
+        var service = CreateService(fake);
 
         var act = () => service.SendMessageAsync("Hi");
 
@@ -32,7 +35,7 @@ public class ChatServiceTests
     public async Task SendMessageAsync_BuildsPromptFromConversationHistory()
     {
         var fake = new FakeLanguageModelService { ResponseText = "Response 2" };
-        var service = new ChatService(fake);
+        var service = CreateService(fake);
 
         await service.SendMessageAsync("Message 1");
         fake.ResponseText = "Response 2";
@@ -46,7 +49,7 @@ public class ChatServiceTests
     public async Task ClearConversation_ResetsHistorySoNextPromptOnlyContainsNewMessage()
     {
         var fake = new FakeLanguageModelService();
-        var service = new ChatService(fake);
+        var service = CreateService(fake);
 
         await service.SendMessageAsync("Message 1");
         service.ClearConversation();
@@ -60,7 +63,7 @@ public class ChatServiceTests
     public async Task SendMessageAsync_AddsResponseToHistoryForNextPrompt()
     {
         var fake = new FakeLanguageModelService { ResponseText = "AI answer" };
-        var service = new ChatService(fake);
+        var service = CreateService(fake);
 
         await service.SendMessageAsync("Question");
         await service.SendMessageAsync("Follow-up");
