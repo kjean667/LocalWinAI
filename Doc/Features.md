@@ -22,19 +22,20 @@
 - Chat log auto-scrolls to the latest message.
 
 ### MCP Server (Claude Code Integration)
-LocalWinAI can run as a local MCP tool provider for Claude Code. Launch it with the `--mcp` flag and Claude Code will delegate small tasks to the local NPU instead of consuming cloud API tokens.
+LocalWinAI exposes four MCP tools so that AI agents can delegate small tasks to the local NPU instead of consuming cloud API tokens. Two executables work together:
 
-**Start in MCP mode:**
-```
-LocalWinAI.exe --mcp
-```
+- **`LocalWinAI.exe`** must be running. It serves inference and embedding requests over a named pipe.
+- **`LocalWinAI.McpHost.exe`** is started by AI Agents as the MCP stdio server. It forwards each tool call to the running app via the pipe.
 
-**Add to your Claude Code settings** (`~/.claude/settings.json`):
+**Register via the Settings page (recommended):**
+Open the app, navigate to **Settings**, enable the *LocalWinAI* toggle, and click **Save**. The app writes the correct entry to `~/.mcp.json` automatically.
+
+**Or add manually** (`~/.mcp.json`):
 ```json
 {
   "mcpServers": {
     "localwinai": {
-      "command": "C:\\Path\\To\\LocalWinAI.exe",
+      "command": "C:\\Path\\To\\LocalWinAI.McpHost.exe",
       "args": ["--mcp"]
     }
   }
@@ -48,11 +49,13 @@ LocalWinAI.exe --mcp
 | `local_infer` | Run a prompt through the local NPU-accelerated model |
 | `local_summarize` | Summarize text locally |
 | `local_classify` | Classify text into provided categories |
-| `local_embed` | Generate embeddings — not yet supported |
+| `local_embed` | Generate a semantic embedding vector using the local NPU |
+
+### Settings Page
+A dedicated **Settings** page in the navigation lets you manage Claude Code integration without editing JSON by hand. Toggle the *LocalWinAI* switch on or off and click **Save** — the app reads and writes `~/.mcp.json`, adding or removing the `localwinai` MCP server entry. The path to the settings file is shown on the page for reference.
 
 ## Planned features
 
-- Streaming token output (update AI bubble text incrementally as tokens arrive).
+- Workspace-aware file reasoning.
 - Markdown rendering in AI message bubbles.
 - Persistent conversation history across app restarts.
-- Embedding support for the `local_embed` MCP tool (requires a dedicated embedding model).

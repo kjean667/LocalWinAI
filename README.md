@@ -12,6 +12,12 @@ LocalWinAI is built for the future of personal computing: **AI that belongs to y
 Chat with the Windows‑integrated Phi Silica model running entirely on your NPU.  
 No cloud calls. No token limits. No privacy concerns.
 
+### MCP Tools for Claude Code  
+Four local MCP tools (`local_infer`, `local_summarize`, `local_classify`, `local_embed`) let AI agents delegate lightweight tasks to the local NPU instead of consuming cloud API tokens. Enable integration from the **Settings** page or edit `~/.mcp.json` directly.
+
+### Usage Statistics  
+A **Statistics** page shows cumulative token counts, an estimated cloud cost saving, per‑tool call breakdowns, a 7‑day activity chart, and a streak badge. Updates in near real‑time as the MCP tools are used.
+
 ### Native Windows UI  
 A clean, responsive Windows application built for everyday use.
 
@@ -27,7 +33,6 @@ In the future, LocalWinAI will:
 
 - power local automations  
 - provide local RAG pipelines  
-- expose rich MCP tools  
 - integrate with editors and IDEs  
 - serve as a drop‑in local AI backend for any Windows app  
 

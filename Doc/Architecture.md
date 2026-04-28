@@ -8,8 +8,9 @@ This document describes the current implemented architecture in `Src/`.
 Src/
   LocalWinAI.Domain/          — Core abstractions and domain types (net10.0-windows10.0.19041.0)
   LocalWinAI.Application/     — Business logic, ViewModels, DI registration (net10.0-windows10.0.19041.0)
-  LocalWinAI.Infrastructure/  — Windows AI integration (net10.0-windows10.0.19041.0)
-  LocalWinAI.Mcp/             — MCP server adapter: stdio transport and tool implementations (net10.0-windows10.0.19041.0)
+  LocalWinAI.Infrastructure/  — Windows AI integration and named pipe server (net10.0-windows10.0.19041.0)
+  LocalWinAI.Mcp/             — MCP tool implementations (net10.0-windows10.0.19041.0)
+  LocalWinAI.McpHost/         — MCP stdio host executable; bridges AI agents to the pipe server (net10.0)
   App/                        — WinUI 3 views and composition root (net10.0-windows10.0.19041.0)
   LocalWinAI.Tests/           — xUnit unit tests (net10.0-windows10.0.19041.0)
 ```
@@ -20,11 +21,14 @@ The solution file is `LocalWinAI.slnx` at the repository root.
 
 ```
 ┌──────────────────────────────────┐   ┌──────────────────────────────────┐
-│  App  (WinUI 3, Program.cs)      │   │  LocalWinAI.Mcp                  │
-│  Driving adapter — GUI mode      │   │  Driving adapter — MCP stdio mode │
+│  App  (WinUI 3)                  │   │  LocalWinAI.McpHost              │
+│  GUI + named pipe server         │   │  MCP stdio host                  │
+│                                  │   │  PipeLanguageModelService        │
 └──────────────┬────────────────────┘   └──────────────┬───────────────────┘
+               │       named pipe IPC                   │
+               │◄───────────────────────────────────────┘
                │                                        │
-               ▼                                        ▼
+               ▼                              ▼ (hosts LocalWinAI.Mcp tools)
 ┌──────────────────────────────────────────────────────────────────────┐
 │   Application                                                        │
 │  IChatService / ChatService          IUsageAggregateService          │
@@ -37,6 +41,7 @@ The solution file is `LocalWinAI.slnx` at the repository root.
                ┌──────────────────────────────────────┐
                │          Infrastructure               │
                │  WindowsLanguageModelService          │
+               │  NamedPipeInferenceServer             │
                │  ClaudeCodeSettingsService            │
                │  UsageTracker (→ usage.ndjson)        │
                │  UsageAggregateService (FileWatcher)  │
@@ -51,33 +56,45 @@ The solution file is `LocalWinAI.slnx` at the repository root.
                └────────────────────────────────┘
 ```
 
-**Dependency rule:** arrows flow inward only. Both `App` and `LocalWinAI.Mcp` are driving adapters at the same level — they depend on Application/Infrastructure/Domain but never on each other.
+**Dependency rule:** arrows flow inward only. `App` and `LocalWinAI.McpHost` are driving adapters at the same level — they depend on Application/Infrastructure/Domain but never on each other. `LocalWinAI.Mcp` contains the MCP tool implementations and is loaded by `McpHost`.
 
 ## Startup Modes
 
-`Program.cs` in the `App` project is the single entry point. It selects the startup mode from the command line:
+There are two executables:
 
-| Invocation | Mode |
+| Executable | Mode |
 |---|---|
-| `LocalWinAI.exe` | WinUI 3 GUI — launches the chat window |
-| `LocalWinAI.exe --mcp` | MCP server — stdio transport, no UI |
+| `LocalWinAI.exe` | WinUI 3 GUI — launches the chat window and starts the named pipe inference server |
+| `LocalWinAI.McpHost.exe --mcp` | MCP host — stdio transport, no UI; forwards inference requests to LocalWinAI.exe via named pipe |
 
-In MCP mode, the WinUI stack is never initialized. The generic host starts with `Infrastructure` and `Mcp` services only, then drives the MCP stdio read/write loop until stdin is closed.
+`LocalWinAI.exe` always starts in GUI mode. On startup it initializes `NamedPipeInferenceServer` as a background service on the named pipe `LocalWinAI-Inference`. This pipe server must be reachable for any MCP tool call to succeed — the app must be running.
 
-Both startup modes register `IUsageTracker`. Every tool call and chat turn appends a record to the shared log at `%LOCALAPPDATA%\LocalWinAI\usage.ndjson`, so the GUI's Statistics page captures usage from both sources.
+`LocalWinAI.McpHost.exe` is a separate, non-packaged executable. It registers `PipeLanguageModelService` as `ILanguageModelService`, which sends each inference or embedding request to the running `LocalWinAI.exe` over the named pipe and returns the result. Both executables register `IUsageTracker`. Every tool call and chat turn appends a record to the shared log at `%LOCALAPPDATA%\LocalWinAI\usage.ndjson`, so the GUI's Statistics page captures usage from both sources.
 
 ## MCP Server
 
-`LocalWinAI.Mcp` embeds an MCP server using the official `ModelContextProtocol` 1.x .NET SDK. It exposes four tools:
+`LocalWinAI.Mcp` contains MCP tool implementations using the official `ModelContextProtocol` 1.x .NET SDK. These tools are hosted by `LocalWinAI.McpHost.exe`, which acts as the stdio MCP server process for MCP clients such as Claude Code.
 
 | Tool | Method | Description |
 |---|---|---|
 | `local_infer` | `LocalInferTool.InferAsync` | Run a prompt through the local model |
 | `local_summarize` | `LocalSummarizeTool.SummarizeAsync` | Summarize text |
 | `local_classify` | `LocalClassifyTool.ClassifyAsync` | Classify text into provided categories |
-| `local_embed` | `LocalEmbedTool.EmbedAsync` | Not yet supported — throws `NotSupportedException` |
+| `local_embed` | `LocalEmbedTool.EmbedAsync` | Generate a semantic embedding vector |
 
-All tools inject `ILanguageModelService` and `IUsageTracker` from DI. Every successful invocation records a `UsageEvent` to the shared log.
+All tools inject `ILanguageModelService` and `IUsageTracker` from DI. In `McpHost`, `ILanguageModelService` is satisfied by `PipeLanguageModelService`, which forwards calls over the named pipe to the running `LocalWinAI.exe`. Every successful invocation records a `UsageEvent` to the shared log.
+
+### Named Pipe Protocol
+
+`PipeLanguageModelService` opens a new `NamedPipeClientStream` connection per request to the pipe `LocalWinAI-Inference`. Messages are newline-delimited JSON using camelCase property names.
+
+| `PipeRequest.Method` | Payload | Response |
+|---|---|---|
+| `ping` | — | `PipeResponse.Result = "pong"` |
+| `infer` | `Prompt` | `PipeResponse.Result` = generated text |
+| `embed` | `Prompt` | `PipeResponse.Embedding` = `float[]` vector |
+
+Timeouts: connect = 5 s, inference/embed = 120 s.
 
 ## Domain Model
 
@@ -94,23 +111,27 @@ All tools inject `ILanguageModelService` and `IUsageTracker` from DI. Every succ
 | `IUsageAggregateService` | Application | Read interface: aggregated stats + `AggregatesChanged` event |
 | `UsageAggregates` | Application | Computed totals, per-tool breakdown, 7-day activity, cost estimate |
 | `StatisticsPageViewModel` | Application | MVVM ViewModel for the statistics page |
-| `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation |
+| `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation of `ILanguageModelService` |
+| `NamedPipeInferenceServer` | Infrastructure | `IHostedService` that listens on the `LocalWinAI-Inference` named pipe and delegates to `ILanguageModelService` |
+| `PipeConstants` | Infrastructure | Shared pipe name and timeout constants |
+| `PipeRequest` / `PipeResponse` | Infrastructure | JSON record types for the pipe protocol |
 | `UsageTracker` | Infrastructure | Appends NDJSON events to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` |
 | `UsageAggregateService` | Infrastructure | Reads and aggregates the log; watches for changes; 90-day compaction |
 | `LocalInferTool` | Mcp | MCP tool: raw inference |
 | `LocalSummarizeTool` | Mcp | MCP tool: summarization via prompted inference |
 | `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
-| `LocalEmbedTool` | Mcp | MCP tool stub: embeddings (not yet supported) |
+| `LocalEmbedTool` | Mcp | MCP tool: generate a semantic embedding vector |
+| `PipeLanguageModelService` | McpHost | `ILanguageModelService` implementation that forwards requests over the named pipe |
 
 ## MCP Host Architecture Rationale
 
-The solution includes a separate `LocalWinAI.McpHost` project to handle MCP server functionality through inter-process communication with the main `LocalWinAI` application. This division is necessary due to platform constraints:
+Two platform constraints force the two-process design:
 
-- **MCP Host Limitations**: The MCP host executable (`LocalWinAI.McpHost.exe`) cannot directly access the local language model because it is not packaged as an AppX application and lacks access to the Limited Access Feature (LAF) required for Windows Copilot Runtime integration.
+- **McpHost cannot access the local model**: `LocalWinAI.McpHost.exe` is a plain .NET console app, not an AppX package. Windows Copilot Runtime (`ILanguageModel`) requires the Limited Access Feature (LAF), which is only granted to packaged AppX applications. The McpHost therefore cannot call the model directly.
 
-- **Main App Limitations**: The main `LocalWinAI` application, being a WinUI 3 AppX package, cannot function as an MCP host because it lacks stdin access in packaged applications.
+- **The main app cannot act as an MCP host**: `LocalWinAI.exe` is a WinUI 3 AppX package. Packaged apps do not have access to `stdin`, so the stdio transport required by the MCP protocol is unavailable.
 
-To bridge this gap, `LocalWinAI.McpHost` communicates with the main `LocalWinAI` application through a named pipe. The MCP host sends language model commands via the pipe, and the main application executes them using its Windows Runtime access, then returns results back through the pipe. This architecture allows MCP clients to leverage local AI capabilities.
+The named pipe bridges the gap: `LocalWinAI.exe` runs a `NamedPipeInferenceServer` in the background at all times. `LocalWinAI.McpHost.exe` connects to the pipe per request, sends a JSON command (`infer` or `embed`), and returns the result to the MCP client via stdio.
 
 ## Development Setup
 
@@ -125,9 +146,10 @@ The `Microsoft.WindowsAppSDK` package is used for building the WinUI 3 applicati
 
 - **Domain** has no external project references.
 - **Application** references Domain only. It must not reference Infrastructure or WinUI.
-- **Infrastructure** references Domain and Application. It must not reference WinUI or Mcp.
+- **Infrastructure** references Domain and Application. It must not reference WinUI, Mcp, or McpHost.
 - **LocalWinAI.Mcp** references Application and Domain only. It must not reference Infrastructure or App.
-- **App** references Application, Infrastructure, and Mcp. It is the composition root.
+- **LocalWinAI.McpHost** references Infrastructure, Mcp, Application, and Domain. It is the composition root for the MCP process.
+- **App** references Application, Infrastructure, and Mcp. It is the composition root for the GUI process.
 - **Tests** references Application, Domain, and Mcp. It must not reference Infrastructure or App.
 
 ## Build and Test

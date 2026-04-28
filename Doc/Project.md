@@ -14,10 +14,12 @@ LocalWinAI is a WinUI 3 desktop application that provides an on-device AI chat e
 ```
 Doc/          — Living documentation (Architecture, Features, Project)
 Src/          — All source code and the solution file
-  App/                        WinUI 3 views and composition root
+  App/                        WinUI 3 views and composition root; runs the named pipe inference server
   LocalWinAI.Application/     Business logic and ViewModels
   LocalWinAI.Domain/          Core interfaces and domain types
-  LocalWinAI.Infrastructure/  Windows AI SDK integration
+  LocalWinAI.Infrastructure/  Windows AI SDK integration and named pipe server
+  LocalWinAI.Mcp/             MCP tool implementations
+  LocalWinAI.McpHost/         MCP stdio host executable; bridges MCP clients to the named pipe
   LocalWinAI.Tests/           xUnit unit tests
 ```
 
