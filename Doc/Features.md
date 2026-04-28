@@ -2,6 +2,19 @@
 
 ## Finished features available right now
 
+### Persistent Chat Sessions
+- Conversations are saved to disk and survive app restarts.
+- A **session sidebar** (left pane) lists all sessions ordered by most-recently used.
+- Each sidebar item shows the session **title** and a relative date ("Today", "Yesterday", "N days ago").
+- A **+ New Session** button at the top of the sidebar starts a fresh conversation.
+- **Right-click** any session item to reveal a **Delete** option.
+- Switching sessions reloads the full message history for the selected session.
+- After the first AI response in a new session the app automatically generates a 4–6-word title by
+  calling the local model in the background. If the model is unavailable, the first 50 characters
+  of the user's message are used as the fallback title.
+- Sessions are persisted under `%LocalAppData%\LocalWinAI\sessions\` as JSON files, with a lightweight
+  `index.json` used for the sidebar (avoids loading full message history just to render the list).
+
 ### Usage Statistics
 - A dedicated **Statistics** page in the navigation shows how much work the local NPU has done.
 - Tracks every chat turn and every MCP tool call: token estimates, call counts, and duration.
@@ -15,10 +28,9 @@
 
 ### On-device Chat
 - Send text messages to the local Windows Runtime language model.
-- Conversation history is maintained across turns within a session (history is passed as a single joined prompt).
+- Conversation history is maintained within a session and across restarts (persisted to disk).
 - Streaming-style UX: a spinner appears in the AI message bubble while inference runs.
-- **Clear** button resets the conversation and clears all message bubbles.
-- Enter key submits the current input message.
+- Enter key submits the current input message. Ctrl+Enter inserts a newline.
 - Chat log auto-scrolls to the latest message.
 
 ### MCP Server (Claude Code Integration)
@@ -58,4 +70,5 @@ A dedicated **Settings** page in the navigation lets you manage Claude Code inte
 
 - Workspace-aware file reasoning.
 - Markdown rendering in AI message bubbles.
-- Persistent conversation history across app restarts.
+- Session search / filter.
+- Manual session title editing.

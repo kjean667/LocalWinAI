@@ -17,14 +17,14 @@ public sealed class WindowsLanguageModelService : ILanguageModelService, IDispos
             if (readyState == AIFeatureReadyState.Ready)
                 return true;
 
-            var op = await LanguageModel.EnsureReadyAsync();
+            var op = await LanguageModel.EnsureReadyAsync().AsTask(cancellationToken);
             if (op.Status == AIFeatureReadyResultState.Success)
                 return true;
 
             throw new InvalidOperationException(
                 $"Language model not ready. GetReadyState={readyState}, EnsureReadyAsync={op.Status}");
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex) when (ex is not InvalidOperationException and not OperationCanceledException)
         {
             throw new InvalidOperationException(
                 $"Language model initialization failed: {ex.GetType().Name} 0x{ex.HResult:X8}: {ex.Message}", ex);
@@ -33,8 +33,8 @@ public sealed class WindowsLanguageModelService : ILanguageModelService, IDispos
 
     public async Task<string> GenerateResponseAsync(string prompt, CancellationToken cancellationToken = default)
     {
-        _languageModel ??= await LanguageModel.CreateAsync();
-        var result = await _languageModel.GenerateResponseAsync(prompt);
+        _languageModel ??= await LanguageModel.CreateAsync().AsTask(cancellationToken);
+        var result = await _languageModel.GenerateResponseAsync(prompt).AsTask(cancellationToken);
         return result.Text;
     }
 

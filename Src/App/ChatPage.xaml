@@ -4,72 +4,123 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:LocalWinAI"
     xmlns:app="using:LocalWinAI.Application"
+    xmlns:sessions="using:LocalWinAI.Application.Sessions"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
+
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBox Grid.Column="0" Grid.Row="0"
-                 Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 PlaceholderText="Type your message here..."
-                 AcceptsReturn="True"
-                 MaxHeight="200"
-                 PreviewKeyDown="InputTextBox_KeyDown" />
-        <Button Grid.Column="1" Grid.Row="0"
-                Command="{x:Bind ViewModel.GenerateResponseCommand}"
-                Content="Ask" />
-        <Button Grid.Column="2" Grid.Row="0"
-                Command="{x:Bind ViewModel.ClearConversationCommand}"
-                Content="Clear" />
+        <!-- Session sidebar -->
+        <Grid Grid.Column="0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Spinner overlay -->
-        <Grid Grid.RowSpan="2" Grid.ColumnSpan="3"
-              Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}">
-            <ProgressRing IsActive="True" Width="64" Height="64" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Grid>
+            <Button Grid.Row="0"
+                    Margin="8"
+                    HorizontalAlignment="Stretch"
+                    Command="{x:Bind ViewModel.NewSessionCommand}"
+                    Content="+ New Session"/>
 
-        <!-- Chat messages -->
-        <ScrollViewer x:Name="ResponseScrollViewer" Grid.Row="1" Grid.ColumnSpan="3" VerticalScrollBarVisibility="Visible">
-            <ItemsControl ItemsSource="{x:Bind ViewModel.ChatMessages, Mode=OneWay}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="app:ObservableChatMessage">
-                        <Grid Margin="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid HorizontalAlignment="{x:Bind Sender, Converter={StaticResource SenderToAlignmentConverter}}"
-                                  Grid.ColumnSpan="2"
-                                  Grid.Column="{x:Bind Sender, Converter={StaticResource SenderToColumnConverter}}">
-                                <Border CornerRadius="12"
-                                        Background="#40ffffff"
-                                        Padding="12,8">
-                                    <Grid>
-                                        <RichTextBlock TextWrapping="Wrap" IsTextSelectionEnabled="True">
-                                            <Paragraph>
-                                                <Run Text="{x:Bind Text, Mode=OneWay}" />
-                                            </Paragraph>
-                                        </RichTextBlock>
-                                        <ProgressRing IsActive="{x:Bind IsWaiting, Mode=OneWay}"
-                                                      Width="24" Height="24" Margin="32,0,0,0"
-                                                      Visibility="{x:Bind IsWaiting, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                    </Grid>
-                                </Border>
-                            </Grid>
+            <ListView x:Name="SessionListView"
+                      Grid.Row="1"
+                      ItemsSource="{x:Bind ViewModel.Sessions, Mode=OneWay}"
+                      SelectionChanged="SessionListView_SelectionChanged">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="sessions:ChatSessionSummaryViewModel">
+                        <Grid Padding="4,2">
+                            <Grid.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Delete"
+                                                    Tag="{x:Bind Id}"
+                                                    Click="DeleteSession_Click"/>
+                                </MenuFlyout>
+                            </Grid.ContextFlyout>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0"
+                                       Text="{x:Bind Title, Mode=OneWay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Grid.Row="1"
+                                       Text="{x:Bind RelativeDateText}"
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Grid>
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+
+        <!-- Chat area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0" Grid.Row="0"
+                     Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="Type your message here..."
+                     AcceptsReturn="True"
+                     MaxHeight="200"
+                     PreviewKeyDown="InputTextBox_KeyDown"/>
+            <Button Grid.Column="1" Grid.Row="0"
+                    Command="{x:Bind ViewModel.GenerateResponseCommand}"
+                    Content="Ask"/>
+
+            <!-- Spinner overlay -->
+            <Grid Grid.RowSpan="2" Grid.ColumnSpan="2"
+                  Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}">
+                <ProgressRing IsActive="True" Width="64" Height="64" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Chat messages -->
+            <ScrollViewer x:Name="ResponseScrollViewer" Grid.Row="1" Grid.ColumnSpan="2" VerticalScrollBarVisibility="Visible">
+                <ItemsControl ItemsSource="{x:Bind ViewModel.ChatMessages, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="app:ObservableChatMessage">
+                            <Grid Margin="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid HorizontalAlignment="{x:Bind Sender, Converter={StaticResource SenderToAlignmentConverter}}"
+                                      Grid.ColumnSpan="2"
+                                      Grid.Column="{x:Bind Sender, Converter={StaticResource SenderToColumnConverter}}">
+                                    <Border CornerRadius="12"
+                                            Background="#40ffffff"
+                                            Padding="12,8">
+                                        <Grid>
+                                            <RichTextBlock TextWrapping="Wrap" IsTextSelectionEnabled="True">
+                                                <Paragraph>
+                                                    <Run Text="{x:Bind Text, Mode=OneWay}"/>
+                                                </Paragraph>
+                                            </RichTextBlock>
+                                            <ProgressRing IsActive="{x:Bind IsWaiting, Mode=OneWay}"
+                                                          Width="24" Height="24" Margin="32,0,0,0"
+                                                          Visibility="{x:Bind IsWaiting, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Page>

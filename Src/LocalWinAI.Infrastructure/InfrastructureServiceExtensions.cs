@@ -1,8 +1,10 @@
 using LocalWinAI.Application.Settings;
 using LocalWinAI.Application.Statistics;
 using LocalWinAI.Domain;
+using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Domain.Usage;
 using LocalWinAI.Infrastructure.Pipe;
+using LocalWinAI.Infrastructure.Sessions;
 using LocalWinAI.Infrastructure.Settings;
 using LocalWinAI.Infrastructure.Usage;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,12 +45,23 @@ public static class InfrastructureServiceExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the file-based chat session repository.
+    /// Call this only from the UI app.
+    /// </summary>
+    public static IServiceCollection AddSessionRepository(this IServiceCollection services)
+    {
+        services.AddSingleton<IChatSessionRepository, ChatSessionRepository>();
+        return services;
+    }
+
     /// <summary>Convenience method that registers all infrastructure services for the UI app.</summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.AddCoreInfrastructureServices();
         services.AddWindowsAiServices();
         services.AddPipeInferenceServer();
+        services.AddSessionRepository();
         return services;
     }
 }

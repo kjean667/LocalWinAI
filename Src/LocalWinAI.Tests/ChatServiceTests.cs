@@ -1,19 +1,24 @@
 using FluentAssertions;
 using LocalWinAI.Application;
+using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Tests.Fakes;
 
 namespace LocalWinAI.Tests;
 
 public class ChatServiceTests
 {
-    private static ChatService CreateService(FakeLanguageModelService fake)
-        => new(fake, new FakeUsageTracker());
+    private static (ChatService service, FakeLanguageModelService lm, FakeChatSessionManager sm) CreateService()
+    {
+        var lm = new FakeLanguageModelService { ResponseText = "Fake AI response" };
+        var sm = new FakeChatSessionManager();
+        return (new ChatService(lm, new FakeUsageTracker(), sm), lm, sm);
+    }
 
     [Fact]
     public async Task SendMessageAsync_WhenModelReady_ReturnsGeneratedResponse()
     {
-        var fake = new FakeLanguageModelService { ResponseText = "Hello there!" };
-        var service = CreateService(fake);
+        var (service, lm, _) = CreateService();
+        lm.ResponseText = "Hello there!";
 
         var response = await service.SendMessageAsync("Hi");
 
@@ -23,8 +28,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_WhenModelNotReady_ThrowsInvalidOperationException()
     {
-        var fake = new FakeLanguageModelService { IsReady = false };
-        var service = CreateService(fake);
+        var (service, lm, _) = CreateService();
+        lm.IsReady = false;
 
         var act = () => service.SendMessageAsync("Hi");
 
@@ -32,42 +37,77 @@ public class ChatServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_BuildsPromptFromConversationHistory()
+    public async Task SendMessageAsync_WhenModelNotReady_DoesNotAddMessageToSession()
     {
-        var fake = new FakeLanguageModelService { ResponseText = "Response 2" };
-        var service = CreateService(fake);
+        var (service, lm, sm) = CreateService();
+        lm.IsReady = false;
 
-        await service.SendMessageAsync("Message 1");
-        fake.ResponseText = "Response 2";
-        await service.SendMessageAsync("Message 2");
+        try { await service.SendMessageAsync("Hi"); } catch { }
 
-        fake.LastPrompt.Should().Contain("Message 1");
-        fake.LastPrompt.Should().Contain("Message 2");
+        sm.ActiveSession.Messages.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ClearConversation_ResetsHistorySoNextPromptOnlyContainsNewMessage()
+    public async Task SendMessageAsync_BuildsPromptFromSessionHistory()
     {
-        var fake = new FakeLanguageModelService();
-        var service = CreateService(fake);
-
+        var (service, lm, _) = CreateService();
+        lm.ResponseText = "Response 1";
         await service.SendMessageAsync("Message 1");
-        service.ClearConversation();
+
+        lm.ResponseText = "Response 2";
         await service.SendMessageAsync("Message 2");
 
-        fake.LastPrompt.Should().Be("Message 2");
-        fake.LastPrompt.Should().NotContain("Message 1");
+        lm.LastPrompt.Should().Contain("Message 1");
+        lm.LastPrompt.Should().Contain("Message 2");
     }
 
     [Fact]
     public async Task SendMessageAsync_AddsResponseToHistoryForNextPrompt()
     {
-        var fake = new FakeLanguageModelService { ResponseText = "AI answer" };
-        var service = CreateService(fake);
-
+        var (service, lm, _) = CreateService();
+        lm.ResponseText = "AI answer";
         await service.SendMessageAsync("Question");
+
         await service.SendMessageAsync("Follow-up");
 
-        fake.LastPrompt.Should().Contain("AI answer");
+        lm.LastPrompt.Should().Contain("AI answer");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_NewActiveSession_PromptsContainOnlyNewSessionMessages()
+    {
+        var (service, lm, sm) = CreateService();
+        lm.ResponseText = "Response 1";
+        await service.SendMessageAsync("Message 1");
+
+        sm.ActiveSession = new ChatSession();
+        lm.ResponseText = "Response 2";
+        await service.SendMessageAsync("Message 2");
+
+        lm.LastPrompt.Should().Be("Message 2");
+        lm.LastPrompt.Should().NotContain("Message 1");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_PersistsSessionAfterSuccessfulExchange()
+    {
+        var (service, _, sm) = CreateService();
+
+        await service.SendMessageAsync("Hello");
+
+        sm.PersistCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_AppendsBothMessagesToSession()
+    {
+        var (service, lm, sm) = CreateService();
+        lm.ResponseText = "World";
+
+        await service.SendMessageAsync("Hello");
+
+        sm.ActiveSession.Messages.Should().HaveCount(2);
+        sm.ActiveSession.Messages[0].Text.Should().Be("Hello");
+        sm.ActiveSession.Messages[1].Text.Should().Be("World");
     }
 }
