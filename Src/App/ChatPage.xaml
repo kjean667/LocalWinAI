@@ -21,7 +21,9 @@
         <TextBox Grid.Column="0" Grid.Row="0"
                  Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  PlaceholderText="Type your message here..."
-                 KeyDown="InputTextBox_KeyDown" />
+                 AcceptsReturn="True"
+                 MaxHeight="200"
+                 PreviewKeyDown="InputTextBox_KeyDown" />
         <Button Grid.Column="1" Grid.Row="0"
                 Command="{x:Bind ViewModel.GenerateResponseCommand}"
                 Content="Ask" />

@@ -1,10 +1,11 @@
-using LocalWinAI.Application;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Threading.Tasks;
+using LocalWinAI.Application;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Windows.UI.Core;
 
 namespace LocalWinAI;
 
@@ -59,6 +60,15 @@ public sealed partial class ChatPage : Page
 
     private void InputTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
+        var ctrl = (InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            & CoreVirtualKeyStates.Down) != 0;
+
+        // Ctrl+Enter - allow newline
+        if (e.Key == Windows.System.VirtualKey.Enter && ctrl)
+        {
+            return;
+        }
+
         if (e.Key == Windows.System.VirtualKey.Enter && ViewModel.GenerateResponseCommand.CanExecute(null))
         {
             ViewModel.GenerateResponseCommand.Execute(null);
