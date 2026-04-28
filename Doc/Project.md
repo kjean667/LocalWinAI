@@ -37,6 +37,6 @@ Src/          — All source code and the solution file
 
 ## Requirements
 
-- Windows 11 25H2 or later
+- Windows 11 24H2 (Build 26100) or later with Copilot+ feature enabled
 - Copilot+ PC with NPU (or compatible hardware for local model inference)
 - `systemAIModels` capability declared in the app manifest
