@@ -42,7 +42,10 @@ public sealed class NamedPipeInferenceServer : IHostedService
             _cts.Dispose();
         }
         if (_acceptLoop is not null)
-            await _acceptLoop.ConfigureAwait(false);
+        {
+            try { await _acceptLoop.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
     }
 
     private async Task AcceptLoopAsync(CancellationToken cancellationToken)

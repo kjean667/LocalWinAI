@@ -63,6 +63,8 @@ and one ends up being thrown away.
 
 # Step 3 - Perform the task
 
+Prefer using local MCP tools when doing task that they can solve.
+
 Using the extracted context as information that might be relevant, perform the assigned task:
 
 ${input:task}

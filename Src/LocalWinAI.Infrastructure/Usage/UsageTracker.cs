@@ -37,6 +37,7 @@ public sealed class UsageTracker : IUsageTracker
             {
                 await Task.Delay(50);
             }
+            catch (IOException) { }
         }
     }
 }
