@@ -1,11 +1,13 @@
 using LocalWinAI.Application.Settings;
 using LocalWinAI.Application.Statistics;
+using LocalWinAI.Application.Tools;
 using LocalWinAI.Domain;
 using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Domain.Usage;
 using LocalWinAI.Infrastructure.Pipe;
 using LocalWinAI.Infrastructure.Sessions;
 using LocalWinAI.Infrastructure.Settings;
+using LocalWinAI.Infrastructure.Tools;
 using LocalWinAI.Infrastructure.Usage;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +24,9 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<IClaudeCodeSettingsService, ClaudeCodeSettingsService>();
         services.AddSingleton<IUsageTracker, UsageTracker>();
         services.AddSingleton<IUsageAggregateService, UsageAggregateService>();
+        services.AddSingleton<IFileTool, ListDirectoryTool>();
+        services.AddSingleton<IFileTool, ReadFileTool>();
+        services.AddSingleton<IFileTool, SearchInFileTool>();
         return services;
     }
 

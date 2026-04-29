@@ -6,16 +6,10 @@ public sealed class FakeChatSessionRepository : IChatSessionRepository
 {
     private readonly Dictionary<Guid, ChatSession> _store = [];
 
-    public Task<IReadOnlyList<ChatSession>> GetAllAsync()
+    public Task<IReadOnlyList<ChatSessionSummary>> GetAllAsync()
     {
-        IReadOnlyList<ChatSession> result = _store.Values
-            .Select(s => new ChatSession
-            {
-                Id = s.Id,
-                Title = s.Title,
-                CreatedAt = s.CreatedAt,
-                LastUsedAt = s.LastUsedAt
-            })
+        IReadOnlyList<ChatSessionSummary> result = _store.Values
+            .Select(s => new ChatSessionSummary(s.Id, s.Title, s.CreatedAt, s.LastUsedAt))
             .ToList();
         return Task.FromResult(result);
     }

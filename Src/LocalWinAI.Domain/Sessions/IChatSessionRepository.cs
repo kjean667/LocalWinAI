@@ -4,7 +4,7 @@ namespace LocalWinAI.Domain.Sessions;
 public interface IChatSessionRepository
 {
     /// <summary>Returns lightweight session metadata for all sessions (no messages), ordered by most-recent first.</summary>
-    Task<IReadOnlyList<ChatSession>> GetAllAsync();
+    Task<IReadOnlyList<ChatSessionSummary>> GetAllAsync();
 
     /// <summary>Returns the full session including all messages, or null if not found.</summary>
     Task<ChatSession?> GetAsync(Guid id);

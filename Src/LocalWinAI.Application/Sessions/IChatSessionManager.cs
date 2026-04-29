@@ -15,7 +15,7 @@ public interface IChatSessionManager
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Returns lightweight metadata for all sessions, most-recent first.</summary>
-    Task<IReadOnlyList<ChatSession>> GetSessionsAsync();
+    Task<IReadOnlyList<ChatSessionSummary>> GetSessionsAsync();
 
     /// <summary>Creates a new empty session, making it the active session.</summary>
     Task<ChatSession> CreateSessionAsync();

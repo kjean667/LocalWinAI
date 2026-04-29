@@ -18,9 +18,9 @@ public sealed class FakeChatSessionManager : IChatSessionManager
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<ChatSession>> GetSessionsAsync()
-        => Task.FromResult<IReadOnlyList<ChatSession>>(AllSessions
-            .Select(s => new ChatSession { Id = s.Id, Title = s.Title, LastUsedAt = s.LastUsedAt, CreatedAt = s.CreatedAt })
+    public Task<IReadOnlyList<ChatSessionSummary>> GetSessionsAsync()
+        => Task.FromResult<IReadOnlyList<ChatSessionSummary>>(AllSessions
+            .Select(s => new ChatSessionSummary(s.Id, s.Title, s.CreatedAt, s.LastUsedAt))
             .ToList());
 
     public Task<ChatSession> CreateSessionAsync()

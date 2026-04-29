@@ -7,7 +7,7 @@ using LocalWinAI.Domain.Sessions;
 
 namespace LocalWinAI.Application;
 
-public partial class ChatPageViewModel : ObservableObject
+public partial class ChatPageViewModel : ObservableObject, IDisposable
 {
     private readonly IChatService _chatService;
     private readonly IChatSessionManager _sessionManager;
@@ -47,6 +47,12 @@ public partial class ChatPageViewModel : ObservableObject
         _sessionManager.SessionTitleUpdated += OnSessionTitleUpdated;
     }
 
+    public void Dispose()
+    {
+        _sessionManager.SessionTitleUpdated -= OnSessionTitleUpdated;
+        _inFlightCts?.Dispose();
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await _sessionManager.InitializeAsync(cancellationToken);
@@ -69,7 +75,8 @@ public partial class ChatPageViewModel : ObservableObject
 
         _inFlightCts?.Cancel();
         _inFlightCts?.Dispose();
-        _inFlightCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _inFlightCts = cts;
 
         ChatMessages.Add(new ObservableChatMessage { Text = userMessage, Sender = ChatMessageSender.User });
         var aiMessage = new ObservableChatMessage { Text = "...", Sender = ChatMessageSender.AI, IsWaiting = true };
@@ -77,7 +84,7 @@ public partial class ChatPageViewModel : ObservableObject
 
         try
         {
-            var response = await _chatService.SendMessageAsync(userMessage, _inFlightCts.Token);
+            var response = await _chatService.SendMessageAsync(userMessage, cts.Token);
             aiMessage.Text = response;
             aiMessage.IsWaiting = false;
             _sessionDrafts.Remove(sessionId);
@@ -91,14 +98,19 @@ public partial class ChatPageViewModel : ObservableObject
         }
         finally
         {
-            _inFlightSessionId = null;
-            IsBusy = false;
+            // Only clear busy state if no newer request has replaced this one
+            if (ReferenceEquals(cts, _inFlightCts))
+            {
+                _inFlightSessionId = null;
+                IsBusy = false;
+            }
         }
     }
 
     private async Task NewSessionAsync()
     {
         _inFlightCts?.Cancel();
+        _inFlightCts = null;
         IsBusy = false;
         await _sessionManager.CreateSessionAsync();
         await RefreshSessionsAsync();
@@ -112,6 +124,7 @@ public partial class ChatPageViewModel : ObservableObject
             return;
 
         _inFlightCts?.Cancel();
+        _inFlightCts = null;
 
         await _sessionManager.SwitchToSessionAsync(id);
         LoadActiveSessionMessages();
@@ -133,7 +146,10 @@ public partial class ChatPageViewModel : ObservableObject
     private async Task DeleteSessionAsync(Guid id)
     {
         if (id == _sessionManager.ActiveSession.Id)
+        {
             _inFlightCts?.Cancel();
+            _inFlightCts = null;
+        }
 
         await _sessionManager.DeleteSessionAsync(id);
         await RefreshSessionsAsync();
@@ -191,7 +207,7 @@ public partial class ChatPageViewModel : ObservableObject
             vm.Title = session.Title;
     }
 
-    private static ChatSessionSummaryViewModel ToSummary(ChatSession s) => new()
+    private static ChatSessionSummaryViewModel ToSummary(ChatSessionSummary s) => new()
     {
         Id = s.Id,
         Title = s.Title,

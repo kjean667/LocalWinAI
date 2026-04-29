@@ -34,7 +34,7 @@ public sealed class ChatSessionManager : IChatSessionManager
         }
     }
 
-    public Task<IReadOnlyList<ChatSession>> GetSessionsAsync() => _repository.GetAllAsync();
+    public Task<IReadOnlyList<ChatSessionSummary>> GetSessionsAsync() => _repository.GetAllAsync();
 
     public async Task<ChatSession> CreateSessionAsync()
     {

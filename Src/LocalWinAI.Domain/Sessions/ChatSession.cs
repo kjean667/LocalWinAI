@@ -7,10 +7,15 @@ public sealed class ChatSession
     public string Title { get; set; } = "New conversation";
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastUsedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? WorkspacePath { get; set; }
 
     private readonly List<ChatMessage> _messages = [];
     public IReadOnlyList<ChatMessage> Messages => _messages;
 
     public void AddMessage(ChatMessage message) => _messages.Add(message);
-    public void RemoveLastMessage() => _messages.RemoveAt(_messages.Count - 1);
+    public void RemoveLastMessage()
+    {
+        if (_messages.Count > 0)
+            _messages.RemoveAt(_messages.Count - 1);
+    }
 }

@@ -25,7 +25,7 @@ public sealed class ChatSessionRepository : IChatSessionRepository
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public async Task<IReadOnlyList<ChatSession>> GetAllAsync()
+    public async Task<IReadOnlyList<ChatSessionSummary>> GetAllAsync()
     {
         var indexPath = IndexPath();
         if (!File.Exists(indexPath))
@@ -35,13 +35,7 @@ public sealed class ChatSessionRepository : IChatSessionRepository
         var index = JsonSerializer.Deserialize<List<SessionIndexEntry>>(json, JsonOptions) ?? [];
 
         return index
-            .Select(e => new ChatSession
-            {
-                Id = e.Id,
-                Title = e.Title,
-                CreatedAt = e.CreatedAt,
-                LastUsedAt = e.LastUsedAt
-            })
+            .Select(e => new ChatSessionSummary(e.Id, e.Title, e.CreatedAt, e.LastUsedAt))
             .ToList();
     }
 
