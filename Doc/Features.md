@@ -68,7 +68,7 @@ A dedicated **Settings** page in the navigation lets you manage Claude Code inte
 
 ## Planned features
 
-- Workspace-aware file reasoning (tool-call protocol parser and result formatter are implemented; tool dispatch and model loop integration are pending).
+- Workspace-aware file reasoning (tool-call protocol parser, result formatter, and tool registry are implemented; tool dispatch and model loop integration are pending).
 - Markdown rendering in AI message bubbles.
 - Session search / filter.
 - Manual session title editing.

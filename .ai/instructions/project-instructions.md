@@ -42,25 +42,6 @@ Don't be backwards compatible when refactoring. Remove old code.
 The documentation should be a living document.
 The source code is always the truth.
 
-# Step 2.5 — Check open PRs before starting work
-
-Before implementing anything, check the open pull requests on GitHub:
-
-```
-gh pr list --state open
-```
-
-Review each open PR to understand what work is in flight. If an open PR covers the same area you are
-about to touch, or could conflict with your planned changes:
-
-1. Review the PR (`gh pr view <number>` and `gh pr diff <number>`).
-2. If the PR looks good and unblocks you — merge it first (`gh pr merge <number> --merge`), then start your work on top of the updated main.
-3. If the PR has issues — leave a comment explaining what needs fixing before you proceed.
-4. Never start a new PR that overlaps with an already-open one without first resolving the conflict.
-
-This prevents the situation where two agents implement the same or conflicting features in parallel
-and one ends up being thrown away.
-
 # Step 3 - Perform the task
 
 Prefer using local MCP tools for sub-task that they can solve.
