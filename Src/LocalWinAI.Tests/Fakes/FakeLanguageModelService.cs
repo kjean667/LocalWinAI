@@ -6,6 +6,7 @@ public sealed class FakeLanguageModelService : ILanguageModelService
 {
     public bool IsReady { get; set; } = true;
     public string ResponseText { get; set; } = "Fake AI response";
+    public Queue<string> ResponseQueue { get; } = new();
     public float[] EmbeddingVector { get; set; } = [0.1f, 0.2f, 0.3f];
     public int GenerateCallCount { get; private set; }
     public string? LastPrompt { get; private set; }
@@ -18,7 +19,8 @@ public sealed class FakeLanguageModelService : ILanguageModelService
     {
         GenerateCallCount++;
         LastPrompt = prompt;
-        return Task.FromResult(ResponseText);
+        var text = ResponseQueue.Count > 0 ? ResponseQueue.Dequeue() : ResponseText;
+        return Task.FromResult(text);
     }
 
     public Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken ct)

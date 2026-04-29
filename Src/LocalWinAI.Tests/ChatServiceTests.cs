@@ -14,6 +14,14 @@ public class ChatServiceTests
         return (new ChatService(lm, new FakeUsageTracker(), sm), lm, sm);
     }
 
+    private static (ChatService service, FakeLanguageModelService lm, FakeChatSessionManager sm, FakeToolRegistry registry) CreateServiceWithTools()
+    {
+        var lm = new FakeLanguageModelService { ResponseText = "Fake AI response" };
+        var sm = new FakeChatSessionManager();
+        var registry = new FakeToolRegistry();
+        return (new ChatService(lm, new FakeUsageTracker(), sm, registry), lm, sm, registry);
+    }
+
     [Fact]
     public async Task SendMessageAsync_WhenModelReady_ReturnsGeneratedResponse()
     {
@@ -109,5 +117,92 @@ public class ChatServiceTests
         sm.ActiveSession.Messages.Should().HaveCount(2);
         sm.ActiveSession.Messages[0].Text.Should().Be("Hello");
         sm.ActiveSession.Messages[1].Text.Should().Be("World");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_ExecutesToolAndReturnsFollowupResponse()
+    {
+        var (service, lm, sm, registry) = CreateServiceWithTools();
+        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
+        lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
+        lm.ResponseQueue.Enqueue("Here is the answer.");
+
+        var response = await service.SendMessageAsync("Read the file");
+
+        response.Should().Be("Here is the answer.");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_OnlyUserAndFinalAiMessagePersistedToSession()
+    {
+        var (service, lm, sm, registry) = CreateServiceWithTools();
+        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
+        lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
+        lm.ResponseQueue.Enqueue("Here is the answer.");
+
+        await service.SendMessageAsync("Read the file");
+
+        sm.ActiveSession.Messages.Should().HaveCount(2);
+        sm.ActiveSession.Messages[0].Text.Should().Be("Read the file");
+        sm.ActiveSession.Messages[1].Text.Should().Be("Here is the answer.");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_WorkspacePathNull_ReturnsResponseAsIs()
+    {
+        var (service, lm, _, _) = CreateServiceWithTools();
+        // WorkspacePath is null by default
+        lm.ResponseText = "<tool_call name=\"read_file\">{}</tool_call>";
+
+        var response = await service.SendMessageAsync("Read the file");
+
+        response.Should().Be("<tool_call name=\"read_file\">{}</tool_call>");
+        lm.GenerateCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_ToolResultAppendedToSubsequentPrompt()
+    {
+        var (service, lm, sm, registry) = CreateServiceWithTools();
+        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
+        lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
+        lm.ResponseQueue.Enqueue("Final answer");
+
+        await service.SendMessageAsync("Hello");
+
+        lm.LastPrompt.Should().Contain("<tool_result name=\"read_file\">");
+        lm.LastPrompt.Should().Contain("file contents");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_StopsAfterFiveIterations()
+    {
+        var (service, lm, sm, registry) = CreateServiceWithTools();
+        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        registry.Register(new FakeFileTool("read_file"));
+        for (var i = 0; i < 6; i++)
+            lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
+
+        var response = await service.SendMessageAsync("Hello");
+
+        lm.GenerateCallCount.Should().Be(5);
+        response.Should().Be("<tool_call name=\"read_file\">{}</tool_call>");
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_ToolCallInResponse_UnknownToolReturnsErrorResult()
+    {
+        var (service, lm, sm, _) = CreateServiceWithTools();
+        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        lm.ResponseQueue.Enqueue("<tool_call name=\"no_such_tool\">{}</tool_call>");
+        lm.ResponseQueue.Enqueue("Done");
+
+        var response = await service.SendMessageAsync("Hello");
+
+        lm.LastPrompt.Should().Contain("Unknown tool: no_such_tool");
+        response.Should().Be("Done");
     }
 }

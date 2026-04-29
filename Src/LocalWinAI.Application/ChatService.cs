@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Text;
 using LocalWinAI.Application.Sessions;
+using LocalWinAI.Application.Tools;
 using LocalWinAI.Domain;
 using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Domain.Usage;
@@ -12,12 +14,19 @@ public sealed class ChatService : IChatService
     private readonly ILanguageModelService _languageModel;
     private readonly IUsageTracker _usageTracker;
     private readonly IChatSessionManager _sessionManager;
+    private readonly IToolRegistry? _toolRegistry;
+    private const int MaxAgentIterations = 5;
 
-    public ChatService(ILanguageModelService languageModel, IUsageTracker usageTracker, IChatSessionManager sessionManager)
+    public ChatService(
+        ILanguageModelService languageModel,
+        IUsageTracker usageTracker,
+        IChatSessionManager sessionManager,
+        IToolRegistry? toolRegistry = null)
     {
         _languageModel = languageModel;
         _usageTracker = usageTracker;
         _sessionManager = sessionManager;
+        _toolRegistry = toolRegistry;
     }
 
     public async Task<string> SendMessageAsync(string userMessage, CancellationToken cancellationToken = default)
@@ -37,7 +46,7 @@ public sealed class ChatService : IChatService
 
             var prompt = string.Join("\n", session.Messages.Select(m => m.Text));
             var sw = Stopwatch.StartNew();
-            response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
+            response = await RunAgentLoopAsync(prompt, session.WorkspacePath, cancellationToken);
             sw.Stop();
 
             session.AddMessage(new ChatMessage(ChatMessageSender.AI, response, DateTimeOffset.UtcNow));
@@ -58,6 +67,34 @@ public sealed class ChatService : IChatService
             throw;
         }
 
+        return response;
+    }
+
+    private async Task<string> RunAgentLoopAsync(string prompt, string? workspacePath, CancellationToken cancellationToken)
+    {
+        var response = string.Empty;
+        for (var iteration = 0; iteration < MaxAgentIterations; iteration++)
+        {
+            response = await _languageModel.GenerateResponseAsync(prompt, cancellationToken);
+
+            if (_toolRegistry is null || workspacePath is null)
+                break;
+
+            var toolCalls = ToolCallParser.Parse(response);
+            if (toolCalls.Count == 0 || iteration == MaxAgentIterations - 1)
+                break;
+
+            var sb = new StringBuilder(prompt);
+            sb.Append('\n').Append(response);
+            foreach (var call in toolCalls)
+            {
+                var result = _toolRegistry.TryGetTool(call.Name, out var tool)
+                    ? await tool!.ExecuteAsync(workspacePath, call.ArgumentsJson, cancellationToken)
+                    : $"Unknown tool: {call.Name}";
+                sb.Append('\n').Append(ToolResultFormatter.Format(call.Name, result));
+            }
+            prompt = sb.ToString();
+        }
         return response;
     }
 }
