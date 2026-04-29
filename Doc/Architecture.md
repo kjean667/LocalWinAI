@@ -111,6 +111,9 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `ILanguageModelService` | Domain | Interface for on-device text generation |
 | `IUsageTracker` | Domain | Write interface: append a `UsageEvent` to the shared log |
 | `UsageEvent` | Domain | Per-call record: source, tool, estimated tokens, duration |
+| `ToolCallParser` | Application | Static parser: extracts `ToolCall` records from model output containing `<tool_call>` blocks |
+| `ToolResultFormatter` | Application | Static formatter: wraps tool results in `<tool_result>` blocks for model consumption |
+| `ToolCall` | Application | Immutable record: Name and ArgumentsJson extracted from a single tool-call block |
 | `IChatService` | Application | Interface for conversation management |
 | `ChatService` | Application | Builds prompts from session history, delegates to model, persists after each exchange |
 | `IChatSessionManager` | Application | Orchestrates active session: create, switch, delete, persist, title generation |
