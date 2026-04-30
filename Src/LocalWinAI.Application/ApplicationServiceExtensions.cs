@@ -17,6 +17,7 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<ChatPageViewModel>();
         services.AddSingleton<SettingsPageViewModel>();
         services.AddSingleton<StatisticsPageViewModel>();
+        services.AddTransient<WorkspacesPageViewModel>();
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         return services;
     }

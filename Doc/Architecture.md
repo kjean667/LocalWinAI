@@ -34,6 +34,7 @@ The solution file is `LocalWinAI.slnx` at the repository root.
 │  IChatService / ChatService          IUsageAggregateService          │
 │  IChatSessionManager / ChatSessionManager                            │
 │  ChatPageViewModel                   StatisticsPageViewModel         │
+│  WorkspacesPageViewModel             WorkspaceEditorViewModel        │
 │  ObservableChatMessage               ChatSessionSummaryViewModel     │
 │  UsageAggregates / ToolStats         DayStats / ToolStatRow          │
 └──────────────────────────────┬───────────────────────────────────────┘
@@ -134,6 +135,10 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `IUsageAggregateService` | Application | Read interface: aggregated stats + `AggregatesChanged` event |
 | `UsageAggregates` | Application | Computed totals, per-tool breakdown, 7-day activity, cost estimate |
 | `StatisticsPageViewModel` | Application | MVVM ViewModel for the statistics page |
+| `WorkspaceListItemViewModel` | Application | Observable sidebar list item for a workspace (Id, Name, IconGlyph, AccentColorHex, Description) |
+| `WorkspaceFolderViewModel` | Application | Observable model for a single folder entry within the workspace editor |
+| `WorkspaceEditorViewModel` | Application | MVVM ViewModel for the workspace editor panel; owns dirty tracking and Save/AddFolder/RemoveFolder commands |
+| `WorkspacesPageViewModel` | Application | MVVM ViewModel for the Workspaces master/detail page; owns the workspace list, selection, and editor lifecycle |
 | `WindowsLanguageModelService` | Infrastructure | Windows Copilot Runtime implementation of `ILanguageModelService` |
 | `NamedPipeInferenceServer` | Infrastructure | `IHostedService` that listens on the `LocalWinAI-Inference` named pipe |
 | `ChatSessionRepository` | Infrastructure | File-based `IChatSessionRepository`; stores sessions under `%LOCALAPPDATA%\LocalWinAI\sessions\` |
