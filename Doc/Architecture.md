@@ -108,6 +108,12 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `ChatMessage` | Domain | Immutable record of a single message: Sender, Text, Timestamp |
 | `ChatSession` | Domain | Aggregate root: Id, Title, CreatedAt, LastUsedAt, Messages |
 | `IChatSessionRepository` | Domain | Persistence contract for chat sessions |
+| `ChatSessionSummary` | Domain | Lightweight sidebar snapshot of a session (no messages) |
+| `Workspace` | Domain | Aggregate root: named bundle of folders, context files, system prompt, memory flag, and tool allow-list |
+| `WorkspaceFolder` | Domain | A file-system folder path included in a workspace, with an optional display alias |
+| `WorkspaceContextFile` | Domain | A pinned context file path included in a workspace, with an optional description |
+| `WorkspaceSummary` | Domain | Lightweight sidebar snapshot of a workspace (Id, Name, IconGlyph, AccentColorHex, UpdatedAt) |
+| `IWorkspaceRepository` | Domain | Persistence contract for workspaces; mirrors `IChatSessionRepository` summary/full pattern |
 | `ILanguageModelService` | Domain | Interface for on-device text generation |
 | `IUsageTracker` | Domain | Write interface: append a `UsageEvent` to the shared log |
 | `UsageEvent` | Domain | Per-call record: source, tool, estimated tokens, duration |

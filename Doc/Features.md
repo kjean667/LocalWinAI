@@ -69,6 +69,7 @@ A dedicated **Settings** page in the navigation lets you manage Claude Code inte
 
 ## Planned features
 
+- Workspaces — named bundles of folders, context files, system prompt, memory, and tool allow-list selectable per chat session.
 - Markdown rendering in AI message bubbles.
 - Session search / filter.
 - Manual session title editing.
