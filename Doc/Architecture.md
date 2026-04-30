@@ -139,6 +139,7 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `PipeRequest` / `PipeResponse` | Infrastructure | JSON record types for the pipe protocol |
 | `UsageTracker` | Infrastructure | Appends NDJSON events to `%LOCALAPPDATA%\LocalWinAI\usage.ndjson` |
 | `UsageAggregateService` | Infrastructure | Reads and aggregates the log; watches for changes; 90-day compaction |
+| `WorkspaceRepository` | Infrastructure | File-based `IWorkspaceRepository`; stores workspaces under `%LOCALAPPDATA%\LocalWinAI\workspaces\` |
 | `LocalInferTool` | Mcp | MCP tool: raw inference |
 | `LocalSummarizeTool` | Mcp | MCP tool: summarization via prompted inference |
 | `LocalClassifyTool` | Mcp | MCP tool: text classification via prompted inference |
@@ -156,6 +157,19 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 ```
 
 `GetAllAsync` reads only `index.json` (fast sidebar load). `GetAsync(id)` reads the full `{id}.json` file. `SaveAsync` updates both the session file and `index.json`.
+
+## Workspace Persistence Layout
+
+```
+%LocalAppData%\LocalWinAI\workspaces\
+  index.json           ← [{Id, Name, IconGlyph, AccentColorHex, UpdatedAt}, ...]  (sidebar metadata)
+  {guid1}.json         ← Full Workspace with all fields
+  {guid2}.json
+  {guid1}.memory.md    ← Reserved for memory feature (future phase)
+  ...
+```
+
+`GetAllAsync` reads only `index.json`, ordered by `UpdatedAt` descending. `GetAsync(id)` reads the full `{id}.json` file. `SaveAsync` bumps `UpdatedAt`, writes `{id}.json`, then updates `index.json`. `DeleteAsync` removes `{id}.json` and best-effort deletes `{id}.memory.md`, then removes the entry from `index.json`.
 
 ## MCP Host Architecture Rationale
 

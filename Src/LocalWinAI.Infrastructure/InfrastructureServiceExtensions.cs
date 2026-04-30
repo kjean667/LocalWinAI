@@ -4,11 +4,13 @@ using LocalWinAI.Application.Tools;
 using LocalWinAI.Domain;
 using LocalWinAI.Domain.Sessions;
 using LocalWinAI.Domain.Usage;
+using LocalWinAI.Domain.Workspaces;
 using LocalWinAI.Infrastructure.Pipe;
 using LocalWinAI.Infrastructure.Sessions;
 using LocalWinAI.Infrastructure.Settings;
 using LocalWinAI.Infrastructure.Tools;
 using LocalWinAI.Infrastructure.Usage;
+using LocalWinAI.Infrastructure.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LocalWinAI.Infrastructure;
@@ -60,6 +62,16 @@ public static class InfrastructureServiceExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the file-based workspace repository.
+    /// Call this only from the UI app.
+    /// </summary>
+    public static IServiceCollection AddWorkspaceRepository(this IServiceCollection services)
+    {
+        services.AddSingleton<IWorkspaceRepository, WorkspaceRepository>();
+        return services;
+    }
+
     /// <summary>Convenience method that registers all infrastructure services for the UI app.</summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
@@ -67,6 +79,7 @@ public static class InfrastructureServiceExtensions
         services.AddWindowsAiServices();
         services.AddPipeInferenceServer();
         services.AddSessionRepository();
+        services.AddWorkspaceRepository();
         return services;
     }
 }
