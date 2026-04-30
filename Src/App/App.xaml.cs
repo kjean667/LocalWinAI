@@ -1,5 +1,6 @@
 using LocalWinAI.Application;
 using LocalWinAI.Application.Settings;
+using LocalWinAI.Application.Workspaces;
 using LocalWinAI.Infrastructure;
 using LocalWinAI.Infrastructure.Pipe;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public partial class App : global::Microsoft.UI.Xaml.Application
         this.InitializeComponent();
         Services = BuildServiceProvider();
         StartPipeServer();
+        LoadWorkspaces();
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -42,6 +44,12 @@ public partial class App : global::Microsoft.UI.Xaml.Application
         var server = Services.GetRequiredService<NamedPipeInferenceServer>();
         // StartAsync is fast (just kicks off the background loop); fire-and-forget is intentional.
         _ = server.StartAsync(CancellationToken.None);
+    }
+
+    private static void LoadWorkspaces()
+    {
+        var manager = Services.GetRequiredService<IWorkspaceManager>();
+        _ = manager.LoadAsync(CancellationToken.None);
     }
 
     private Window? _window;

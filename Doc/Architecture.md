@@ -126,6 +126,8 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `ChatService` | Application | Builds prompts from session history, delegates to model, persists after each exchange |
 | `IChatSessionManager` | Application | Orchestrates active session: create, switch, delete, persist, title generation |
 | `ChatSessionManager` | Application | Implements `IChatSessionManager`; fires background title generation after first exchange |
+| `IWorkspaceManager` | Application | In-memory workspace list with CRUD and `WorkspacesChanged` event for ViewModel sync |
+| `WorkspaceManager` | Application | Implements `IWorkspaceManager`; keeps `Summaries` sorted by `UpdatedAt` descending; loaded once on startup |
 | `ObservableChatMessage` | Application | UI-bindable message with mutable Text and IsWaiting |
 | `ChatSessionSummaryViewModel` | Application | Observable sidebar item: Id, Title (observable), RelativeDateText |
 | `ChatPageViewModel` | Application | MVVM ViewModel for the chat page including session sidebar |
