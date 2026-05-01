@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LocalWinAI.Domain.Workspaces;
 
 namespace LocalWinAI.Application.Workspaces;
 
@@ -28,8 +29,12 @@ public partial class WorkspacesPageViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<WorkspaceListItemViewModel> Workspaces { get; } = [];
 
+    public bool HasEditor => Editor is not null;
+
     public IAsyncRelayCommand NewWorkspaceCommand { get; }
     public IAsyncRelayCommand<Guid> DeleteWorkspaceCommand { get; }
+    public IAsyncRelayCommand<Guid> DuplicateWorkspaceCommand { get; }
+    public IAsyncRelayCommand DiscardCommand { get; }
 
     public WorkspacesPageViewModel(IWorkspaceManager manager)
     {
@@ -41,6 +46,8 @@ public partial class WorkspacesPageViewModel : ObservableObject, IDisposable
 
         NewWorkspaceCommand = new AsyncRelayCommand(NewWorkspaceAsync);
         DeleteWorkspaceCommand = new AsyncRelayCommand<Guid>(DeleteWorkspaceAsync);
+        DuplicateWorkspaceCommand = new AsyncRelayCommand<Guid>(DuplicateWorkspaceAsync);
+        DiscardCommand = new AsyncRelayCommand(DiscardAsync);
     }
 
     public void Dispose()
@@ -52,6 +59,11 @@ public partial class WorkspacesPageViewModel : ObservableObject, IDisposable
     {
         if (!_suppressEditorLoad)
             _ = LoadEditorAsync(value);
+    }
+
+    partial void OnEditorChanged(WorkspaceEditorViewModel? value)
+    {
+        OnPropertyChanged(nameof(HasEditor));
     }
 
     private void OnWorkspacesChanged(object? sender, EventArgs e)
@@ -131,4 +143,26 @@ public partial class WorkspacesPageViewModel : ObservableObject, IDisposable
 
     private Task DeleteWorkspaceAsync(Guid id, CancellationToken ct)
         => _manager.DeleteAsync(id, ct);
+
+    private Task DiscardAsync(CancellationToken ct)
+        => LoadEditorAsync(SelectedWorkspace);
+
+    private async Task DuplicateWorkspaceAsync(Guid id, CancellationToken ct)
+    {
+        var source = await _manager.GetAsync(id, ct);
+        if (source is null)
+            return;
+
+        var copy = await _manager.CreateAsync(source.Name + " (Copy)", ct);
+        copy.Description = source.Description;
+        copy.IconGlyph = source.IconGlyph;
+        copy.AccentColorHex = source.AccentColorHex;
+        copy.SystemPrompt = source.SystemPrompt;
+        foreach (var f in source.Folders)
+            copy.Folders.Add(new WorkspaceFolder(f.Path, f.Alias));
+        await _manager.SaveAsync(copy, ct);
+
+        var item = Workspaces.FirstOrDefault(w => w.Id == copy.Id);
+        SelectedWorkspace = item;
+    }
 }

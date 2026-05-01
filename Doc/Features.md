@@ -67,9 +67,23 @@ Open the app, navigate to **Settings**, enable the *LocalWinAI* toggle, and clic
 ### Settings Page
 A dedicated **Settings** page in the navigation lets you manage Claude Code integration without editing JSON by hand. Toggle the *LocalWinAI* switch on or off and click **Save** — the app reads and writes `~/.mcp.json`, adding or removing the `localwinai` MCP server entry. The path to the settings file is shown on the page for reference.
 
+## In progress
+
+### Workspaces (basic management surface)
+- A dedicated **Workspaces** page is accessible from the main navigation (briefcase icon, directly under Chat).
+- Master/detail layout: workspace list on the left (280 px), editor on the right.
+- **Empty state** hero card when no workspaces exist, with a single **+ Create workspace** button.
+- **Left pane**: accent-coloured dot + workspace name per list item; right-click context menu with Rename, Duplicate, Delete (Delete requires confirmation).
+- **Right pane editor** sections (extensible for future phases): Name, Description, Folders (add via FolderPicker, remove inline, alias editable), System prompt.
+- **Save** button enabled only when the editor is dirty; **Discard** reloads from disk.
+- Workspaces persist under `%LocalAppData%\LocalWinAI\workspaces\` (implemented in earlier issues).
+
 ## Planned features
 
-- Workspaces — named bundles of folders, context files, system prompt, memory, and tool allow-list selectable per chat session.
+- Context files per workspace (#23).
+- Memory per workspace (#24).
+- Tool allow-list per workspace (#25).
+- Starter prompts per workspace (#26).
 - Markdown rendering in AI message bubbles.
 - Session search / filter.
 - Manual session title editing.

@@ -20,6 +20,7 @@ public sealed partial class MainWindow : Window
             {
                 "Settings" => typeof(SettingsPage),
                 "Statistics" => typeof(StatisticsPage),
+                "Workspaces" => typeof(WorkspacesPage),
                 _ => typeof(ChatPage)
             };
             MainFrame.Navigate(pageType);

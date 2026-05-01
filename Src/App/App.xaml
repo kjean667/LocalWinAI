@@ -15,6 +15,7 @@
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <local:SenderToColumnConverter x:Key="SenderToColumnConverter" />
             <local:SenderToAlignmentConverter x:Key="SenderToAlignmentConverter" />
+            <local:HexToBrushConverter x:Key="HexToBrushConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

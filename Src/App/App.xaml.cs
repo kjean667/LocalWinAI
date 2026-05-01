@@ -23,9 +23,13 @@ public partial class App : global::Microsoft.UI.Xaml.Application
         LoadWorkspaces();
     }
 
+    /// <summary>The application's main window. Available after <see cref="OnLaunched"/> runs.</summary>
+    public static Window AppWindow { get; private set; } = null!;
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _window = new MainWindow();
+        AppWindow = _window;
         _window.Activate();
     }
 
