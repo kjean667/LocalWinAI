@@ -1,6 +1,7 @@
 using FluentAssertions;
 using LocalWinAI.Application;
 using LocalWinAI.Domain.Sessions;
+using LocalWinAI.Domain.Workspaces;
 using LocalWinAI.Tests.Fakes;
 
 namespace LocalWinAI.Tests;
@@ -14,12 +15,21 @@ public class ChatServiceTests
         return (new ChatService(lm, new FakeUsageTracker(), sm), lm, sm);
     }
 
-    private static (ChatService service, FakeLanguageModelService lm, FakeChatSessionManager sm, FakeToolRegistry registry) CreateServiceWithTools()
+    private static (ChatService service, FakeLanguageModelService lm, FakeChatSessionManager sm, FakeToolRegistry registry, FakeWorkspaceRepository workspaceRepo) CreateServiceWithTools()
     {
         var lm = new FakeLanguageModelService { ResponseText = "Fake AI response" };
         var sm = new FakeChatSessionManager();
         var registry = new FakeToolRegistry();
-        return (new ChatService(lm, new FakeUsageTracker(), sm, registry), lm, sm, registry);
+        var workspaceRepo = new FakeWorkspaceRepository();
+        return (new ChatService(lm, new FakeUsageTracker(), sm, workspaceRepo, registry), lm, sm, registry, workspaceRepo);
+    }
+
+    private static void SetupWorkspace(FakeWorkspaceRepository repo, FakeChatSessionManager sm, string folderPath)
+    {
+        var workspace = new Workspace();
+        workspace.Folders.Add(new WorkspaceFolder(folderPath));
+        repo.SaveAsync(workspace).GetAwaiter().GetResult();
+        sm.ActiveSession.WorkspaceId = workspace.Id;
     }
 
     [Fact]
@@ -122,8 +132,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_ToolCallInResponse_ExecutesToolAndReturnsFollowupResponse()
     {
-        var (service, lm, sm, registry) = CreateServiceWithTools();
-        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        var (service, lm, sm, registry, workspaceRepo) = CreateServiceWithTools();
+        SetupWorkspace(workspaceRepo, sm, @"C:\workspace");
         registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
         lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
         lm.ResponseQueue.Enqueue("Here is the answer.");
@@ -136,8 +146,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_ToolCallInResponse_OnlyUserAndFinalAiMessagePersistedToSession()
     {
-        var (service, lm, sm, registry) = CreateServiceWithTools();
-        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        var (service, lm, sm, registry, workspaceRepo) = CreateServiceWithTools();
+        SetupWorkspace(workspaceRepo, sm, @"C:\workspace");
         registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
         lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
         lm.ResponseQueue.Enqueue("Here is the answer.");
@@ -150,10 +160,10 @@ public class ChatServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_ToolCallInResponse_WorkspacePathNull_ReturnsResponseAsIs()
+    public async Task SendMessageAsync_ToolCallInResponse_WorkspaceIdNull_ReturnsResponseAsIs()
     {
-        var (service, lm, _, _) = CreateServiceWithTools();
-        // WorkspacePath is null by default
+        var (service, lm, _, _, _) = CreateServiceWithTools();
+        // WorkspaceId is null by default — tool calls pass through unchanged
         lm.ResponseText = "<tool_call name=\"read_file\">{}</tool_call>";
 
         var response = await service.SendMessageAsync("Read the file");
@@ -165,8 +175,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_ToolCallInResponse_ToolResultAppendedToSubsequentPrompt()
     {
-        var (service, lm, sm, registry) = CreateServiceWithTools();
-        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        var (service, lm, sm, registry, workspaceRepo) = CreateServiceWithTools();
+        SetupWorkspace(workspaceRepo, sm, @"C:\workspace");
         registry.Register(new FakeFileTool("read_file") { Result = "file contents" });
         lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
         lm.ResponseQueue.Enqueue("Final answer");
@@ -180,8 +190,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_ToolCallInResponse_StopsAfterFiveIterations()
     {
-        var (service, lm, sm, registry) = CreateServiceWithTools();
-        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        var (service, lm, sm, registry, workspaceRepo) = CreateServiceWithTools();
+        SetupWorkspace(workspaceRepo, sm, @"C:\workspace");
         registry.Register(new FakeFileTool("read_file"));
         for (var i = 0; i < 6; i++)
             lm.ResponseQueue.Enqueue("<tool_call name=\"read_file\">{}</tool_call>");
@@ -195,8 +205,8 @@ public class ChatServiceTests
     [Fact]
     public async Task SendMessageAsync_ToolCallInResponse_UnknownToolReturnsErrorResult()
     {
-        var (service, lm, sm, _) = CreateServiceWithTools();
-        sm.ActiveSession.WorkspacePath = @"C:\workspace";
+        var (service, lm, sm, _, workspaceRepo) = CreateServiceWithTools();
+        SetupWorkspace(workspaceRepo, sm, @"C:\workspace");
         lm.ResponseQueue.Enqueue("<tool_call name=\"no_such_tool\">{}</tool_call>");
         lm.ResponseQueue.Enqueue("Done");
 

@@ -64,7 +64,7 @@ public sealed class ToolRegistryTests
     {
         public string Name => name;
         public string Description => "fake";
-        public Task<string> ExecuteAsync(string workspaceRoot, string argumentsJson, CancellationToken cancellationToken)
+        public Task<string> ExecuteAsync(IFileToolContext context, string argumentsJson, CancellationToken cancellationToken)
             => Task.FromResult("fake result");
     }
 }

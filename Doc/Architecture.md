@@ -107,7 +107,7 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 |---|---|---|
 | `ChatMessageSender` | Domain | Enum: User or AI |
 | `ChatMessage` | Domain | Immutable record of a single message: Sender, Text, Timestamp |
-| `ChatSession` | Domain | Aggregate root: Id, Title, CreatedAt, LastUsedAt, Messages |
+| `ChatSession` | Domain | Aggregate root: Id, Title, CreatedAt, LastUsedAt, WorkspaceId (nullable Guid), Messages |
 | `IChatSessionRepository` | Domain | Persistence contract for chat sessions |
 | `ChatSessionSummary` | Domain | Lightweight sidebar snapshot of a session (no messages) |
 | `Workspace` | Domain | Aggregate root: named bundle of folders, context files, system prompt, memory flag, and tool allow-list |
@@ -121,6 +121,8 @@ Timeouts: connect = 5 s, inference/embed = 120 s.
 | `ToolCallParser` | Application | Static parser: extracts `ToolCall` records from model output containing `<tool_call>` blocks |
 | `ToolResultFormatter` | Application | Static formatter: wraps tool results in `<tool_result>` blocks for model consumption |
 | `ToolCall` | Application | Immutable record: Name and ArgumentsJson extracted from a single tool-call block |
+| `IFileToolContext` | Application | Provides folder resolution and sandbox enforcement for file tool execution; exposes `Folders` and `TryResolveAbsolute` |
+| `FileToolContext` | Application | Concrete `IFileToolContext`; resolves folder aliases (alias before bare name), enforces single-folder default, and rejects path traversal |
 | `IToolRegistry` | Application | Name-based lookup and enumeration of all registered `IFileTool` instances |
 | `ToolRegistry` | Application | Implements `IToolRegistry`; built from DI-collected `IFileTool` instances; throws on duplicate names |
 | `IChatService` | Application | Interface for conversation management |

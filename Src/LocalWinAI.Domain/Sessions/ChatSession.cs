@@ -7,7 +7,7 @@ public sealed class ChatSession
     public string Title { get; set; } = "New conversation";
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastUsedAt { get; set; } = DateTimeOffset.UtcNow;
-    public string? WorkspacePath { get; set; }
+    public Guid? WorkspaceId { get; set; }
 
     private readonly List<ChatMessage> _messages = [];
     public IReadOnlyList<ChatMessage> Messages => _messages;

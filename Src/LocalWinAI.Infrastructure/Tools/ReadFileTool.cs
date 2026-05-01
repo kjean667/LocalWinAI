@@ -8,14 +8,14 @@ public sealed class ReadFileTool : IFileTool
     private const int CharLimit = 32_000;
 
     public string Name => "read_file";
-    public string Description => "Reads the UTF-8 content of a file at a path relative to the workspace root.";
+    public string Description => "Reads the UTF-8 content of a file. Arguments: folder (required when workspace has multiple folders, omit for single-folder workspaces), path (relative file path).";
 
-    public async Task<string> ExecuteAsync(string workspaceRoot, string argumentsJson, CancellationToken cancellationToken)
+    public async Task<string> ExecuteAsync(IFileToolContext context, string argumentsJson, CancellationToken cancellationToken)
     {
-        var relativePath = ParsePath(argumentsJson);
+        var (folder, relativePath) = ParseArgs(argumentsJson);
 
-        if (!FileToolSandbox.TryResolve(workspaceRoot, relativePath, out var fullPath, out var error))
-            return error;
+        if (!context.TryResolveAbsolute(folder, relativePath, out var fullPath, out var error))
+            return error!;
 
         if (!File.Exists(fullPath))
             return $"File not found: {relativePath}";
@@ -31,17 +31,18 @@ public sealed class ReadFileTool : IFileTool
         return content;
     }
 
-    private static string ParsePath(string argumentsJson)
+    private static (string? folder, string path) ParseArgs(string argumentsJson)
     {
         if (string.IsNullOrWhiteSpace(argumentsJson))
-            return string.Empty;
+            return (null, string.Empty);
         try
         {
             using var doc = JsonDocument.Parse(argumentsJson);
-            if (doc.RootElement.TryGetProperty("path", out var p))
-                return p.GetString() ?? string.Empty;
+            var folder = doc.RootElement.TryGetProperty("folder", out var f) ? f.GetString() : null;
+            var path = doc.RootElement.TryGetProperty("path", out var p) ? p.GetString() ?? string.Empty : string.Empty;
+            return (folder, path);
         }
         catch (JsonException) { }
-        return string.Empty;
+        return (null, string.Empty);
     }
 }

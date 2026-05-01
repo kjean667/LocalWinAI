@@ -7,14 +7,14 @@ namespace LocalWinAI.Infrastructure.Tools;
 public sealed class ListDirectoryTool : IFileTool
 {
     public string Name => "list_directory";
-    public string Description => "Lists files and subdirectories at a path relative to the workspace root.";
+    public string Description => "Lists files and subdirectories at a path relative to a workspace folder. Arguments: folder (required when workspace has multiple folders, omit for single-folder workspaces), path (relative directory path).";
 
-    public Task<string> ExecuteAsync(string workspaceRoot, string argumentsJson, CancellationToken cancellationToken)
+    public Task<string> ExecuteAsync(IFileToolContext context, string argumentsJson, CancellationToken cancellationToken)
     {
-        var relativePath = ParsePath(argumentsJson);
+        var (folder, relativePath) = ParseArgs(argumentsJson);
 
-        if (!FileToolSandbox.TryResolve(workspaceRoot, relativePath, out var fullPath, out var error))
-            return Task.FromResult(error);
+        if (!context.TryResolveAbsolute(folder, relativePath, out var fullPath, out var error))
+            return Task.FromResult(error!);
 
         if (!Directory.Exists(fullPath))
             return Task.FromResult($"Directory not found: {relativePath}");
@@ -28,17 +28,18 @@ public sealed class ListDirectoryTool : IFileTool
         return Task.FromResult(sb.Length == 0 ? "(empty directory)" : sb.ToString().TrimEnd());
     }
 
-    private static string ParsePath(string argumentsJson)
+    private static (string? folder, string path) ParseArgs(string argumentsJson)
     {
         if (string.IsNullOrWhiteSpace(argumentsJson))
-            return ".";
+            return (null, ".");
         try
         {
             using var doc = JsonDocument.Parse(argumentsJson);
-            if (doc.RootElement.TryGetProperty("path", out var p))
-                return p.GetString() ?? ".";
+            var folder = doc.RootElement.TryGetProperty("folder", out var f) ? f.GetString() : null;
+            var path = doc.RootElement.TryGetProperty("path", out var p) ? p.GetString() ?? "." : ".";
+            return (folder, path);
         }
         catch (JsonException) { }
-        return ".";
+        return (null, ".");
     }
 }

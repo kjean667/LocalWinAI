@@ -50,7 +50,7 @@ public sealed class ChatSessionRepository : IChatSessionRepository
         if (doc is null)
             return null;
 
-        var session = new ChatSession { Id = doc.Id, Title = doc.Title, CreatedAt = doc.CreatedAt, LastUsedAt = doc.LastUsedAt };
+        var session = new ChatSession { Id = doc.Id, Title = doc.Title, CreatedAt = doc.CreatedAt, LastUsedAt = doc.LastUsedAt, WorkspaceId = doc.WorkspaceId };
         foreach (var m in doc.Messages)
             session.AddMessage(m);
         return session;
@@ -66,6 +66,7 @@ public sealed class ChatSessionRepository : IChatSessionRepository
             Title = session.Title,
             CreatedAt = session.CreatedAt,
             LastUsedAt = session.LastUsedAt,
+            WorkspaceId = session.WorkspaceId,
             Messages = session.Messages.ToList()
         };
         var sessionJson = JsonSerializer.Serialize(doc, JsonOptions);
@@ -141,6 +142,7 @@ public sealed class ChatSessionRepository : IChatSessionRepository
         public string Title { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset LastUsedAt { get; set; }
+        public Guid? WorkspaceId { get; set; }
         public List<ChatMessage> Messages { get; set; } = [];
     }
 }

@@ -32,7 +32,7 @@
 - Streaming-style UX: a spinner appears in the AI message bubble while inference runs.
 - Enter key submits the current input message. Ctrl+Enter inserts a newline.
 - Chat log auto-scrolls to the latest message.
-- **Workspace-aware agent loop**: when a session has a `WorkspacePath` set, the model may respond with `<tool_call>` blocks. `ChatService` executes each tool via the `IToolRegistry`, appends `<tool_result>` blocks to the prompt, and re-invokes the model — repeating until a plain-text answer is produced or the 5-iteration safety cap is reached. Only the final plain-text response is saved to the session history.
+- **Workspace-aware agent loop**: when a session has a `WorkspaceId` set and the referenced workspace exists, `ChatService` constructs an `IFileToolContext` from the workspace's folders and enables tool use. The model may respond with `<tool_call>` blocks. `ChatService` executes each tool via the `IToolRegistry`, appends `<tool_result>` blocks to the prompt, and re-invokes the model — repeating until a plain-text answer is produced or the 5-iteration safety cap is reached. Only the final plain-text response is saved to the session history. Each tool call may include a `folder` argument (required when the workspace has multiple folders, optional for single-folder workspaces).
 
 ### MCP Server (Claude Code Integration)
 LocalWinAI exposes four MCP tools so that AI agents can delegate small tasks to the local NPU instead of consuming cloud API tokens. Two executables work together:

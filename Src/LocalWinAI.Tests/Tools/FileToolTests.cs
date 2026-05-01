@@ -1,4 +1,6 @@
 using FluentAssertions;
+using LocalWinAI.Application.Tools;
+using LocalWinAI.Domain.Workspaces;
 using LocalWinAI.Infrastructure.Tools;
 
 namespace LocalWinAI.Tests.Tools;
@@ -6,6 +8,8 @@ namespace LocalWinAI.Tests.Tools;
 public sealed class FileToolTests : IDisposable
 {
     private readonly string _workspace = Path.Combine(Path.GetTempPath(), $"LocalWinAI_Test_{Guid.NewGuid():N}");
+
+    private IFileToolContext Context => new FileToolContext([new WorkspaceFolder(_workspace)]);
 
     public FileToolTests()
     {
@@ -24,7 +28,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ListDirectoryTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"."}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"."}""", default);
 
         result.Should().Contain("[dir]  subdir");
         result.Should().Contain("[file] hello.txt");
@@ -35,7 +39,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ListDirectoryTool();
 
-        var result = await tool.ExecuteAsync(_workspace, "", default);
+        var result = await tool.ExecuteAsync(Context, "", default);
 
         result.Should().Contain("[file] hello.txt");
     }
@@ -45,7 +49,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ListDirectoryTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"subdir"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"subdir"}""", default);
 
         result.Should().Contain("[file] nested.txt");
         result.Should().NotContain("hello.txt");
@@ -56,9 +60,9 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ListDirectoryTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"../.."}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"../.."}""", default);
 
-        result.Should().Contain("escapes the workspace root");
+        result.Should().Contain("escapes the folder root");
     }
 
     // ── ReadFileTool ───────────────────────────────────────────────────────────
@@ -68,7 +72,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ReadFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"hello.txt"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"hello.txt"}""", default);
 
         result.Should().Contain("Hello, world!");
         result.Should().Contain("Line two.");
@@ -79,7 +83,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ReadFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"missing.txt"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"missing.txt"}""", default);
 
         result.Should().Contain("File not found");
     }
@@ -91,7 +95,7 @@ public sealed class FileToolTests : IDisposable
         File.WriteAllText(bigFile, new string('x', 40_000));
         var tool = new ReadFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"big.txt"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"big.txt"}""", default);
 
         result.Should().EndWith("[truncated]");
         result.Length.Should().BeLessThan(40_000);
@@ -102,9 +106,9 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new ReadFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"../../secret.txt"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"../../secret.txt"}""", default);
 
-        result.Should().Contain("escapes the workspace root");
+        result.Should().Contain("escapes the folder root");
     }
 
     // ── SearchInFileTool ───────────────────────────────────────────────────────
@@ -114,7 +118,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"hello.txt","query":"hello"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"hello.txt","query":"hello"}""", default);
 
         result.Should().Contain("1: Hello, world!");
         result.Should().Contain("3: Hello again.");
@@ -126,7 +130,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"hello.txt","query":"HELLO"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"hello.txt","query":"HELLO"}""", default);
 
         result.Should().Contain("1: Hello, world!");
     }
@@ -136,7 +140,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"hello.txt","query":"zzznomatch"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"hello.txt","query":"zzznomatch"}""", default);
 
         result.Should().Contain("No matches found");
     }
@@ -146,7 +150,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"hello.txt"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"hello.txt"}""", default);
 
         result.Should().Contain("Missing required argument: query");
     }
@@ -156,9 +160,9 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"path":"../outside.txt","query":"x"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"path":"../outside.txt","query":"x"}""", default);
 
-        result.Should().Contain("escapes the workspace root");
+        result.Should().Contain("escapes the folder root");
     }
 
     [Fact]
@@ -166,7 +170,7 @@ public sealed class FileToolTests : IDisposable
     {
         var tool = new SearchInFileTool();
 
-        var result = await tool.ExecuteAsync(_workspace, """{"query":"hello"}""", default);
+        var result = await tool.ExecuteAsync(Context, """{"query":"hello"}""", default);
 
         result.Should().Contain("Missing required argument: path");
     }

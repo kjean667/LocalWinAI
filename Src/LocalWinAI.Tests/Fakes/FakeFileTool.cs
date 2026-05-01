@@ -11,7 +11,7 @@ public sealed class FakeFileTool : IFileTool
 
     public FakeFileTool(string name) => Name = name;
 
-    public Task<string> ExecuteAsync(string workspaceRoot, string argumentsJson, CancellationToken cancellationToken)
+    public Task<string> ExecuteAsync(IFileToolContext context, string argumentsJson, CancellationToken cancellationToken)
     {
         CallCount++;
         return Task.FromResult(Result);
